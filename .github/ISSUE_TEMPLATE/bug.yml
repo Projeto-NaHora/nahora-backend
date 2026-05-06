@@ -1,0 +1,50 @@
+name: "🐛 Bug Backend"
+description: "Reportar um erro no backend da API"
+labels: ["bug", "backend"]
+body:
+  - type: input
+    id: endpoint
+    attributes:
+      label: "Endpoint afetado"
+      placeholder: "POST /api/v1/auth/register"
+
+  - type: dropdown
+    id: gravidade
+    attributes:
+      label: "Gravidade"
+      options:
+        - "🔴 Crítico — API fora do ar ou dados corrompidos"
+        - "🟡 Moderado — endpoint retorna erro mas API funciona"
+        - "🟢 Baixo — resposta incorreta sem impacto crítico"
+    validations:
+      required: true
+
+  - type: textarea
+    id: descricao
+    attributes:
+      label: "Descrição do bug"
+      placeholder: "Ao chamar POST /api/v1/orders com body válido, retorna 500..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: stacktrace
+    attributes:
+      label: "Stacktrace / Log de erro"
+      description: "Cole o erro do console ou do log da aplicação"
+      render: shell
+
+  - type: textarea
+    id: request
+    attributes:
+      label: "Request que causa o erro"
+      description: "Curl, Postman export ou body JSON"
+      render: json
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: "Comportamento esperado"
+      placeholder: "Deveria retornar 201 com o objeto criado"
+    validations:
+      required: true

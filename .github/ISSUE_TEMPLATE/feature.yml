@@ -1,0 +1,91 @@
+name: "⚙️ Tarefa Backend"
+description: "Tarefa técnica de implementação no backend — vinculada a uma issue mãe no nahora-app"
+labels: ["feature", "backend"]
+body:
+  - type: input
+    id: issue-mae
+    attributes:
+      label: "Issue mãe (nahora-app)"
+      description: "Número da issue central que originou esta tarefa"
+      placeholder: "nahora-app#42"
+    validations:
+      required: true
+
+  - type: input
+    id: caso-uso
+    attributes:
+      label: "Caso de Uso"
+      placeholder: "UC-01"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: onda
+    attributes:
+      label: "Onda"
+      options:
+        - "Onda 1 — Fundação"
+        - "Onda 2 — MVP Core"
+        - "Onda 3 — MVP Core"
+        - "Onda 4 — Busca e Feedback"
+        - "Onda 5 — Gestão de Pedidos"
+        - "Onda 6 — Interação Direta"
+        - "Onda 7 — Perfil e Históricos"
+        - "Onda 8+"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: camada
+    attributes:
+      label: "Camada MVC principal"
+      description: "Qual camada é mais impactada por esta tarefa?"
+      options:
+        - "Model (entidade JPA + migration)"
+        - "Repository (acesso a dados)"
+        - "Service (regra de negócio)"
+        - "Controller (endpoint REST)"
+        - "Security (autenticação/autorização)"
+        - "Config (infraestrutura)"
+        - "Todas as camadas (feature completa)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: descricao
+    attributes:
+      label: "O que implementar"
+      description: "Descreva a tarefa técnica com detalhes suficientes para outro dev executar"
+      placeholder: |
+        1. Criar model/Usuario.java com herança JOINED
+        2. Criar migration V1__create_users_table.sql
+        3. Criar UsuarioRepository.java
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: "Dependências"
+      description: "Esta tarefa depende de outra issue estar pronta antes?"
+      placeholder: |
+        - Depende de: nahora-backend#12 (precisa da entity Usuario)
+        - Bloqueia: nahora-frontend#8 (frontend precisa do endpoint)
+
+  - type: input
+    id: estimativa
+    attributes:
+      label: "Estimativa (story points)"
+      placeholder: "3"
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: "Definition of Done"
+      value: |
+        - [ ] Código implementado seguindo a estrutura MVC
+        - [ ] Migration Flyway criada (se aplicável)
+        - [ ] Endpoint documentado no Swagger (se aplicável)
+        - [ ] Testes unitários passando
+        - [ ] PR aberto e revisado

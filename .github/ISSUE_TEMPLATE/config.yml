@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "📋 Criar issue de feature no nahora-app"
+    url: "https://github.com/SUA-ORG/nahora-app/issues/new?template=feature.yml"
+    about: "Features novas devem ser criadas primeiro no nahora-app como issue mãe"
