@@ -1,8 +1,12 @@
 package com.nahora.services;
 
+import com.nahora.dto.request.ForgotPasswordRequest;
+import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
+import com.nahora.dto.request.ResetPasswordRequest;
 import com.nahora.dto.response.AuthResponse;
 import com.nahora.model.Cliente;
+import com.nahora.model.Usuario;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -70,6 +75,84 @@ public class AuthService {
         redisTemplate.delete("otp:" + telefone);
         redisTemplate.delete("otp_attempts:" + telefone);
         redisTemplate.opsForValue().set("phone_verified:" + telefone, "true", 30, TimeUnit.MINUTES);
+    }
+
+    public AuthResponse login(LoginRequest request) {
+        Usuario usuario = findByEmailOrPhone(request.identificador())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+
+        if (!Boolean.TRUE.equals(usuario.getAtivo())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Conta desativada.");
+        }
+
+        if (!passwordEncoder.matches(request.senha(), usuario.getSenha())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
+        }
+
+        return new AuthResponse(
+                jwtService.generateAccessToken(usuario),
+                jwtService.generateRefreshToken(usuario)
+        );
+    }
+
+    public void forgotPassword(String identificador) {
+        if (findByEmailOrPhone(identificador).isEmpty()) {
+            return;
+        }
+
+        String lockKey = "pwd_reset_lock:" + identificador;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Aguarde antes de solicitar um novo código.");
+        }
+
+        String code = String.format("%06d", new Random().nextInt(999999));
+        redisTemplate.opsForValue().set("pwd_reset_otp:" + identificador, code, 5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set("pwd_reset_attempts:" + identificador, "0", 5, TimeUnit.MINUTES);
+
+        log.info("Mock SMS/Email -> OTP de recuperação para {}: {}", identificador, code);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String identificador = request.identificador();
+
+        String lockKey = "pwd_reset_lock:" + identificador;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Aguarde antes de tentar novamente.");
+        }
+
+        String otpKey = "pwd_reset_otp:" + identificador;
+        String savedCode = redisTemplate.opsForValue().get(otpKey);
+        if (savedCode == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código OTP expirado ou não solicitado.");
+        }
+
+        if (!savedCode.equals(request.codigo())) {
+            Long attempts = redisTemplate.opsForValue().increment("pwd_reset_attempts:" + identificador);
+            if (attempts != null && attempts >= 3) {
+                redisTemplate.opsForValue().set(lockKey, "locked", 15, TimeUnit.MINUTES);
+                redisTemplate.delete(otpKey);
+                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas falhas. Bloqueado por 15 minutos.");
+            }
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código OTP inválido.");
+        }
+
+        Usuario usuario = findByEmailOrPhone(identificador)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+
+        usuario.setSenha(passwordEncoder.encode(request.novaSenha()));
+        usuarioRepository.save(usuario);
+
+        redisTemplate.delete(otpKey);
+        redisTemplate.delete("pwd_reset_attempts:" + identificador);
+        redisTemplate.delete("refresh_token:" + usuario.getEmail());
+    }
+
+    private Optional<Usuario> findByEmailOrPhone(String identificador) {
+        if (identificador.contains("@")) {
+            return usuarioRepository.findByEmail(identificador);
+        }
+        return usuarioRepository.findByTelefone(identificador);
     }
 
     @Transactional
