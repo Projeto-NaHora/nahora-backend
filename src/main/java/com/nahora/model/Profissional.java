@@ -5,8 +5,11 @@ import com.nahora.model.enums.StatusVerificacao;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.hibernate.validator.constraints.br.CPF;
 import org.locationtech.jts.geom.Point;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Entity
@@ -28,6 +31,11 @@ public class Profissional extends Usuario {
     @Column(name = "raio_atuacao")
     private Double raioAtuacao;
 
+    @ElementCollection
+    @CollectionTable(name = "profissional_especialidades", joinColumns = @JoinColumn(name = "profissional_id"))
+    @Column(name = "especialidade")
+    private List<String> especialidades;
+
     @Column(name = "total_servicos_executados")
     private Integer totalServicosExecutados = 0;
 
@@ -36,9 +44,25 @@ public class Profissional extends Usuario {
     @Column(name = "documento_url")
     private String documentoUrl;
 
+    @Column(name = "Anos_experiencia")
+    Integer anosExperiencia;
+
+    @Column(name = "valor_inicial")
+    private BigDecimal valorInicial;
+
+    @CPF
+    @Column(unique = true)
+    private String cpf;
+
+    @Column(name = "area_atuacao")
+    private List<String> areaAtuacao;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status_verificacao")
     private StatusVerificacao statusVerificacao;
+
+    @Column(name = "perfil_completo")
+    private Boolean perfilCompleto = false;
 
     @Column(name = "plano_plus")
     private Boolean planoPlus = false;
