@@ -2,11 +2,15 @@ package com.nahora.services;
 
 import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
+import com.nahora.dto.request.RegisterProfissionalRequest;
 import com.nahora.dto.request.ResetPasswordRequest;
 import com.nahora.dto.response.AuthResponse;
 import com.nahora.model.Cliente;
+import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
+import com.nahora.model.enums.CategoriaServico;
 import com.nahora.repositories.ClienteRepository;
+import com.nahora.repositories.ProfissionalRepository;
 import com.nahora.repositories.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,6 +44,8 @@ class AuthServiceTest {
     private ValueOperations<String, String> valueOperations;
     @Mock
     private ClienteRepository clienteRepository;
+    @Mock
+    private ProfissionalRepository profissionalRepository;
     @Mock
     private UsuarioRepository usuarioRepository;
     @Mock
@@ -64,29 +71,62 @@ class AuthServiceTest {
         assertThrows(ResponseStatusException.class, () -> authService.sendOtp("81999999999"));
         verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any());
     }
-
+    
     // ---- verifyOtp ----
-
+    
     @Test
     @DisplayName("Deve validar OTP com sucesso e liberar o cadastro")
     void verifyOtp_Sucesso() {
         when(redisTemplate.hasKey("otp_lock:81999999999")).thenReturn(false);
         when(valueOperations.get("otp:81999999999")).thenReturn("123456");
-
+        
         assertDoesNotThrow(() -> authService.verifyOtp("81999999999", "123456"));
-
+        
         verify(redisTemplate).delete("otp:81999999999");
         verify(redisTemplate).delete("otp_attempts:81999999999");
         verify(valueOperations).set(eq("phone_verified:81999999999"), eq("true"), anyLong(), any());
     }
-
+    
     // ---- registerCliente ----
-
+    
     @Test
     @DisplayName("Deve registrar cliente com sucesso se telefone estiver verificado")
     void registerCliente_Sucesso() {
         RegisterClienteRequest request = new RegisterClienteRequest(
                 "João Silva", "joao@email.com", "81999999999", "SenhaForte123"
+            );
+
+        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
+        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
+        when(valueOperations.get("phone_verified:" + request.telefone())).thenReturn("true");
+        when(passwordEncoder.encode(request.senha())).thenReturn("hash");
+        
+        Cliente clienteSalvo = new Cliente();
+        clienteSalvo.setId(1L);
+        when(clienteRepository.save(any(Cliente.class))).thenReturn(clienteSalvo);
+        when(jwtService.generateAccessToken(any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(any())).thenReturn("refresh-token");
+        
+        AuthResponse response = authService.registerCliente(request);
+        
+        assertNotNull(response);
+        assertEquals("access-token", response.accessToken());
+        verify(redisTemplate).delete("phone_verified:" + request.telefone());
+    }
+    
+    @Test
+    @DisplayName("Deve registrar profissional com sucesso se telefone estiver verificado")
+    void registerProfissional_Sucesso() {
+        // Arrange
+        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
+                CategoriaServico.ELETRICA, 
+                "12345678901",
+                List.of("Eletricista"),
+                5,
+                new java.math.BigDecimal("150.00"),
+                List.of("Recife"),
+                "http://link-do-documento.com"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
@@ -94,19 +134,93 @@ class AuthServiceTest {
         when(valueOperations.get("phone_verified:" + request.telefone())).thenReturn("true");
         when(passwordEncoder.encode(request.senha())).thenReturn("hash");
 
-        Cliente clienteSalvo = new Cliente();
-        clienteSalvo.setId(1L);
-        when(clienteRepository.save(any(Cliente.class))).thenReturn(clienteSalvo);
-        when(jwtService.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtService.generateRefreshToken(any())).thenReturn("refresh-token");
+        // Simula o salvamento no banco e gera um ID
+        when(profissionalRepository.save(any(Profissional.class))).thenAnswer(invocation -> {
+            Profissional p = invocation.getArgument(0);
+            p.setId(2L);
+            return p;
+        });
+        
+        when(jwtService.generateAccessToken(any(Profissional.class))).thenReturn("access-token-pro");
+        when(jwtService.generateRefreshToken(any(Profissional.class))).thenReturn("refresh-token-pro");
 
-        AuthResponse response = authService.registerCliente(request);
+        // Act
+        AuthResponse response = authService.registerProfissional(request);
 
+        // Assert
         assertNotNull(response);
-        assertEquals("access-token", response.accessToken());
+        assertEquals("access-token-pro", response.accessToken());
+        assertEquals("refresh-token-pro", response.refreshToken());
+        
+        // Verifica se limpou o cache do redis
         verify(redisTemplate).delete("phone_verified:" + request.telefone());
+        // Verifica se chamou o save
+        verify(profissionalRepository).save(any(Profissional.class));
     }
 
+    @Test
+    @DisplayName("Deve bloquear registro de profissional se o e-mail já estiver em uso")
+    void registerProfissional_EmailJaEmUso() {
+        // Arrange
+        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, new java.math.BigDecimal("150.00"), List.of("Recife"), "url"
+        );
+
+        when(usuarioRepository.existsByEmail(request.email())).thenReturn(true);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+                () -> authService.registerProfissional(request));
+        
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("E-mail já está em uso.", ex.getReason());
+        verify(profissionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear registro de profissional se o telefone já estiver em uso")
+    void registerProfissional_TelefoneJaEmUso() {
+        // Arrange
+        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, new java.math.BigDecimal("150.00"), List.of("Recife"), "url"
+        );
+
+        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
+        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(true);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+                () -> authService.registerProfissional(request));
+        
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("Telefone já está em uso.", ex.getReason());
+        verify(profissionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear registro de profissional se o telefone não foi verificado no OTP")
+    void registerProfissional_TelefoneNaoVerificado() {
+        // Arrange
+        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, new java.math.BigDecimal("150.00"), List.of("Recife"), "url"
+        );
+
+        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
+        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
+        
+        // Retornando null ou "false" para simular que não passou no OTP
+        when(valueOperations.get("phone_verified:" + request.telefone())).thenReturn(null);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+                () -> authService.registerProfissional(request));
+        
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+        verify(profissionalRepository, never()).save(any());
+    }
     @Test
     @DisplayName("Deve bloquear registro se o telefone não foi verificado no OTP")
     void registerCliente_TelefoneNaoVerificado() {
@@ -301,4 +415,7 @@ class AuthServiceTest {
         verify(redisTemplate).delete("pwd_reset_otp:joao@email.com");
         verify(valueOperations).set(eq("pwd_reset_lock:joao@email.com"), eq("locked"), eq(15L), any());
     }
+
 }
+
+
