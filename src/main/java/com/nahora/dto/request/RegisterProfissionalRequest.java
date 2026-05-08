@@ -9,6 +9,8 @@ import com.nahora.model.enums.CategoriaServico;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 public record RegisterProfissionalRequest(
@@ -31,22 +33,22 @@ public record RegisterProfissionalRequest(
         String senha,
 
         // especificos de profissional
-        @NotBlank(message = "A categoria de serviço é obrigatória")
+        @NotNull(message = "A categoria de serviço é obrigatória")
         CategoriaServico categoriaServico,
 
         @NotBlank @CPF(message = "CPF inválido")
         String cpf,
 
-        @NotBlank(message = "A área de atuação é obrigatória")
+        @NotEmpty(message = "A área de atuação é obrigatória")
         List<String> especialidades,
 
-        @NotBlank(message = "Anos de experiência são obrigatórios")
+        @NotNull(message = "Anos de experiência são obrigatórios")
         Integer anosExperiencia,
 
-        @NotBlank(message = "O valor inicial é obrigatório")
+        @NotNull(message = "O valor inicial é obrigatório")
         BigDecimal valorInicial,
 
-        @NotBlank(message = "A área de atuação é obrigatória")
+        @NotEmpty(message = "A área de atuação é obrigatória")
         List<String> areaAtuacao,
 
         @NotBlank(message = "O URL do documento é obrigatório")

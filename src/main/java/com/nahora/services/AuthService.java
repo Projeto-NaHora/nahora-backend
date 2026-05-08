@@ -203,7 +203,8 @@ public class AuthService {
         if (usuarioRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já está em uso.");
         }
-
+        
+        
         if(usuarioRepository.existsByTelefone(request.telefone())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Telefone já está em uso.");
         }
@@ -213,6 +214,7 @@ public class AuthService {
         if (!"true".equals(verifiedStatus)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Telefone não verificado ou verificação expirou.");
         }
+        
 
         // Limpa a verificação do redis para evitar reuso imediato na mesma sessão
         redisTemplate.delete("phone_verified:" + request.telefone());
