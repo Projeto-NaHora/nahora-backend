@@ -54,7 +54,12 @@ public class Profissional extends Usuario {
     @Column(unique = true)
     private String cpf;
 
-    @Column(name = "area_atuacao")
+    @ElementCollection
+    @CollectionTable(
+            name = "profissional_areas_atuacao",
+            joinColumns = @JoinColumn(name = "profissional_id")
+    )
+    @Column(name = "bairro_ou_area")
     private List<String> areaAtuacao;
 
     @Enumerated(EnumType.STRING)
