@@ -209,15 +209,20 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Telefone já está em uso.");
         }
 
+        if(profissionalRepository.existsByCpf(request.cpf())){
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CPF já está em uso.");
+        }
+
          // Verifica se o telefone passou pela validação de OTP
         String verifiedStatus = redisTemplate.opsForValue().get("phone_verified:" + request.telefone());
         if (!"true".equals(verifiedStatus)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Telefone não verificado ou verificação expirou.");
         }
-        
 
         // Limpa a verificação do redis para evitar reuso imediato na mesma sessão
         redisTemplate.delete("phone_verified:" + request.telefone());
+
+
         
         Profissional profissional = new Profissional();
         profissional.setNome(request.nome());
@@ -232,10 +237,13 @@ public class AuthService {
         profissional.setEspecialidades(request.especialidades());
         profissional.setAnosExperiencia(request.anosExperiencia());
         profissional.setValorInicial(request.valorInicial());
-        
-        profissional.setStatusVerificacao(StatusVerificacao.NAO_ENVIADO);
+        profissional.setCategoriasAtendidas(List.of(request.categoriaServico()));
+        profissional.setDocumentoUrl(request.documentoUrl());
+
+        // o profissional vai ter os documentos enviados, mas ainda não verificados
+        profissional.setStatusVerificacao(StatusVerificacao.PENDENTE);
         profissional.setDisponivel(false);
-        profissional.setPerfilCompleto(false);
+        profissional.setPerfilCompleto(true);
 
         profissionalRepository.save(profissional);
 
