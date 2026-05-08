@@ -45,6 +45,27 @@ public class JwtService {
                 .compact();
     }
 
+    public String extractEmail(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public String generateRefreshToken(Usuario user) {
         String refreshToken = UUID.randomUUID().toString();
         String redisKey = "refresh_token:" + user.getEmail();

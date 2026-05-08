@@ -1,6 +1,9 @@
 package com.nahora.controllers;
 
+import com.nahora.dto.request.ForgotPasswordRequest;
+import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
+import com.nahora.dto.request.ResetPasswordRequest;
 import com.nahora.dto.request.SendOtpRequest;
 import com.nahora.dto.request.VerifyOtpRequest;
 import com.nahora.dto.response.AuthResponse;
@@ -40,5 +43,25 @@ public class AuthController {
     public ResponseEntity<AuthResponse> registerCliente(@Valid @RequestBody RegisterClienteRequest request) {
         AuthResponse response = authService.registerCliente(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "Autentica usuário por e-mail ou telefone e retorna tokens JWT")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Gera OTP de recuperação de senha e envia por SMS/e-mail (Simulado)")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request.identificador());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Redefine a senha utilizando o código OTP de recuperação")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok().build();
     }
 }
