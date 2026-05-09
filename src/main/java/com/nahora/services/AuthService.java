@@ -22,15 +22,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final StringRedisTemplate redisTemplate;
     private final ClienteRepository clienteRepository;
@@ -45,7 +47,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Telefone bloqueado. Tente novamente em 15 minutos.");
         }
 
-        String code = String.format("%06d", new Random().nextInt(999999));
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
 
         // Salvar código no Redis com TTL de 5 minutos
         redisTemplate.opsForValue().set("otp:" + telefone, code, 5, TimeUnit.MINUTES);
@@ -111,7 +113,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Aguarde antes de solicitar um novo código.");
         }
 
-        String code = String.format("%06d", new Random().nextInt(999999));
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         redisTemplate.opsForValue().set("pwd_reset_otp:" + identificador, code, 5, TimeUnit.MINUTES);
         redisTemplate.opsForValue().set("pwd_reset_attempts:" + identificador, "0", 5, TimeUnit.MINUTES);
 
@@ -240,7 +242,7 @@ public class AuthService {
         // o profissional vai ter os documentos enviados, mas ainda não verificados
         profissional.setStatusVerificacao(StatusVerificacao.PENDENTE);
         profissional.setDisponivel(false);
-        profissional.setPerfilCompleto(true);
+        profissional.setPerfilCompleto(false);
 
         profissional = profissionalRepository.save(profissional);
 
