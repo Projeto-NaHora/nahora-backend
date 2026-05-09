@@ -1,13 +1,14 @@
 package com.nahora.services;
 
 import com.nahora.dto.request.PedidoRequest;
+import com.nahora.dto.response.EnderecoResponse;
+import com.nahora.dto.response.PedidoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.PedidoRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -15,6 +16,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -37,11 +39,11 @@ public class PedidoService {
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Transactional
-    public Pedido criarPedido(PedidoRequest request) {
+    public Pedido criarPedido(Long clienteId, PedidoRequest request) {
 
-        Cliente cliente = clienteRepository.findById(request.getClienteId())
+        Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Cliente não encontrado com ID: " + request.getClienteId()));
+                        "Cliente não encontrado com ID: " + clienteId));
 
         long pedidosAbertos = pedidoRepository.countByClienteAndStatusIn(cliente, STATUS_EM_ABERTO);
         if (pedidosAbertos >= 3) {
@@ -57,7 +59,6 @@ public class PedidoService {
         pedido.setOrcamentoEstimado(request.getOrcamentoEstimado());
         pedido.setDataDesejada(request.getDataDesejada());
         pedido.setStatus(StatusPedido.ABERTO);
-
         pedido.setFotos(request.getFotos() != null ? request.getFotos() : List.of());
 
         Endereco endereco;
@@ -107,5 +108,37 @@ public class PedidoService {
         pedido.setEndereco(endereco);
 
         return pedidoRepository.save(pedido);
+    }
+
+    public PedidoResponse toResponseDTO(Pedido pedido) {
+        PedidoResponse response = new PedidoResponse();
+        response.setId(pedido.getId());
+        response.setCategoria(pedido.getCategoria());
+        response.setDescricao(pedido.getDescricao());
+        response.setFotos(pedido.getFotos());
+        response.setUrgencia(pedido.getUrgencia());
+        response.setOrcamentoEstimado(pedido.getOrcamentoEstimado());
+        response.setDataDesejada(pedido.getDataDesejada());
+        response.setStatus(pedido.getStatus());
+        response.setCriadoEm(pedido.getCriadoEm());
+        response.setClienteId(pedido.getCliente().getId());
+        response.setClienteNome(pedido.getCliente().getNome());
+
+        if (pedido.getEndereco() != null) {
+            EnderecoResponse enderecoResponse = new EnderecoResponse();
+            enderecoResponse.setLogradouro(pedido.getEndereco().getLogradouro());
+            enderecoResponse.setNumero(pedido.getEndereco().getNumero());
+            enderecoResponse.setComplemento(pedido.getEndereco().getComplemento());
+            enderecoResponse.setBairro(pedido.getEndereco().getBairro());
+            enderecoResponse.setCidade(pedido.getEndereco().getCidade());
+            enderecoResponse.setEstado(pedido.getEndereco().getEstado());
+            enderecoResponse.setCep(pedido.getEndereco().getCep());
+            if (pedido.getEndereco().getCoordenadas() != null) {
+                enderecoResponse.setLongitude(pedido.getEndereco().getCoordenadas().getX());
+                enderecoResponse.setLatitude(pedido.getEndereco().getCoordenadas().getY());
+            }
+            response.setEndereco(enderecoResponse);
+        }
+        return response;
     }
 }

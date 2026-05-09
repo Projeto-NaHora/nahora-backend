@@ -16,9 +16,6 @@ import java.util.List;
 @Setter
 public class PedidoRequest {
 
-    @NotNull(message = "ID do cliente é obrigatório")
-    private Long clienteId;
-
     @NotNull(message = "Categoria é obrigatória")
     private CategoriaServico categoria;
 

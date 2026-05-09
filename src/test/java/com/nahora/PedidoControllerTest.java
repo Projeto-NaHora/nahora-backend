@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.nahora.controllers.PedidoController;
 import com.nahora.dto.request.EnderecoRequest;
 import com.nahora.dto.request.PedidoRequest;
+import com.nahora.dto.response.PedidoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
@@ -18,10 +19,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -29,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -49,14 +57,29 @@ class PedidoControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(pedidoController).build();
-    }
+        HandlerMethodArgumentResolver authPrincipalResolver = new HandlerMethodArgumentResolver() {
+            @Override
+            public boolean supportsParameter(MethodParameter parameter) {
+                return parameter.hasParameterAnnotation(AuthenticationPrincipal.class);
+            }
 
+            @Override
+            public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+                                          NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+                Cliente cliente = new Cliente();
+                cliente.setId(1L);
+                return cliente;
+            }
+        };
+
+        mockMvc = MockMvcBuilders.standaloneSetup(pedidoController)
+                .setCustomArgumentResolvers(authPrincipalResolver)
+                .build();
+    }
 
     @Test
     void criarPedido_ComDadosValidos_DeveRetornar201() throws Exception {
         PedidoRequest request = new PedidoRequest();
-        request.setClienteId(1L);
         request.setCategoria(CategoriaServico.ELETRICA);
         request.setDescricao("Troca de tomada");
         request.setUrgencia(Urgencia.NORMAL);
@@ -77,7 +100,12 @@ class PedidoControllerTest {
         pedidoMock.setCliente(clienteMock);
         pedidoMock.setEndereco(enderecoMock);
 
-        when(pedidoService.criarPedido(any(PedidoRequest.class))).thenReturn(pedidoMock);
+        when(pedidoService.criarPedido(eq(1L), any(PedidoRequest.class))).thenReturn(pedidoMock);
+
+        PedidoResponse responseMock = new PedidoResponse();
+        responseMock.setId(100L);
+        responseMock.setStatus(StatusPedido.ABERTO);
+        when(pedidoService.toResponseDTO(any(Pedido.class))).thenReturn(responseMock);
 
         mockMvc.perform(post("/api/v1/pedidos")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +118,6 @@ class PedidoControllerTest {
     @Test
     void criarPedido_ComDataDesejadaPassada_DeveRetornar400() throws Exception {
         PedidoRequest request = new PedidoRequest();
-        request.setClienteId(1L);
         request.setCategoria(CategoriaServico.ELETRICA);
         request.setDescricao("Teste");
         request.setUrgencia(Urgencia.NORMAL);
@@ -114,7 +141,6 @@ class PedidoControllerTest {
     @Test
     void criarPedido_ComMaisDe5Fotos_DeveRetornar400() throws Exception {
         PedidoRequest request = new PedidoRequest();
-        request.setClienteId(1L);
         request.setCategoria(CategoriaServico.ELETRICA);
         request.setDescricao("Teste");
         request.setUrgencia(Urgencia.NORMAL);
@@ -130,13 +156,12 @@ class PedidoControllerTest {
     @Test
     void criarPedido_ComClienteInexistente_DeveRetornar404() throws Exception {
         PedidoRequest request = new PedidoRequest();
-        request.setClienteId(999L);
         request.setCategoria(CategoriaServico.ELETRICA);
         request.setDescricao("Teste");
         request.setUrgencia(Urgencia.NORMAL);
         request.setDataDesejada(LocalDateTime.now().plusDays(1));
 
-        when(pedidoService.criarPedido(any(PedidoRequest.class)))
+        when(pedidoService.criarPedido(eq(1L), any(PedidoRequest.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado"));
 
         mockMvc.perform(post("/api/v1/pedidos")
@@ -148,13 +173,12 @@ class PedidoControllerTest {
     @Test
     void criarPedido_ComLimiteDePedidosExcedido_DeveRetornar409() throws Exception {
         PedidoRequest request = new PedidoRequest();
-        request.setClienteId(1L);
         request.setCategoria(CategoriaServico.ELETRICA);
         request.setDescricao("Teste");
         request.setUrgencia(Urgencia.NORMAL);
         request.setDataDesejada(LocalDateTime.now().plusDays(1));
 
-        when(pedidoService.criarPedido(any(PedidoRequest.class)))
+        when(pedidoService.criarPedido(eq(1L), any(PedidoRequest.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Cliente possui 3 pedidos em aberto"));
 
         mockMvc.perform(post("/api/v1/pedidos")

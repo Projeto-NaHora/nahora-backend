@@ -51,10 +51,10 @@ class PedidoServiceTest {
     private Cliente cliente;
     private PedidoRequest request;
     private Endereco enderecoSalvo;
+    private final Long clienteId = 1L; // ID fixo para os testes
 
     @BeforeEach
     void setUp() {
-
         enderecoSalvo = new Endereco();
         enderecoSalvo.setLogradouro("Rua Salva");
         enderecoSalvo.setNumero("10");
@@ -67,12 +67,11 @@ class PedidoServiceTest {
         enderecoSalvo.setCoordenadas(pointSalvo);
 
         cliente = new Cliente();
-        cliente.setId(1L);
+        cliente.setId(clienteId);
         cliente.setNome("João");
         cliente.setEnderecosSalvos(List.of(enderecoSalvo));
 
         request = new PedidoRequest();
-        request.setClienteId(1L);
         request.setCategoria(CategoriaServico.ELETRICA);
         request.setDescricao("Conserto de chuveiro");
         request.setUrgencia(Urgencia.NORMAL);
@@ -83,8 +82,7 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_ComEnderecoNovo_DeveConverterLatLonParaPoint() {
-
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(0L);
 
         EnderecoRequest enderecoNovo = new EnderecoRequest();
@@ -103,7 +101,7 @@ class PedidoServiceTest {
         pedidoSalvo.setId(1L);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
-        Pedido resultado = pedidoService.criarPedido(request);
+        Pedido resultado = pedidoService.criarPedido(clienteId, request);
 
         assertThat(resultado).isNotNull();
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
@@ -120,7 +118,7 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_ComEnderecoSalvoIndex_DeveCopiarEnderecoSalvo() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(0L);
 
         request.setEnderecoSalvoIndex(0);
@@ -130,7 +128,7 @@ class PedidoServiceTest {
         pedidoSalvo.setId(1L);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
-        pedidoService.criarPedido(request);
+        pedidoService.criarPedido(clienteId, request);
 
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(captor.capture());
@@ -145,11 +143,11 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_SemEnderecoNemIndex_DeveLancar400() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         request.setEnderecoSalvoIndex(null);
         request.setEndereco(null);
 
-        assertThatThrownBy(() -> pedidoService.criarPedido(request))
+        assertThatThrownBy(() -> pedidoService.criarPedido(clienteId, request))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
                     ResponseStatusException rse = (ResponseStatusException) ex;
@@ -161,11 +159,11 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_IndiceEnderecoSalvoInvalido_DeveLancar400() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         request.setEnderecoSalvoIndex(99);
         request.setEndereco(null);
 
-        assertThatThrownBy(() -> pedidoService.criarPedido(request))
+        assertThatThrownBy(() -> pedidoService.criarPedido(clienteId, request))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
                     ResponseStatusException rse = (ResponseStatusException) ex;
@@ -177,10 +175,10 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_ClienteComTresPedidosAbertos_DeveLancar409() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(3L);
 
-        assertThatThrownBy(() -> pedidoService.criarPedido(request))
+        assertThatThrownBy(() -> pedidoService.criarPedido(clienteId, request))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
                     ResponseStatusException rse = (ResponseStatusException) ex;
@@ -192,9 +190,9 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_ClienteNaoEncontrado_DeveLancar404() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.empty());
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> pedidoService.criarPedido(request))
+        assertThatThrownBy(() -> pedidoService.criarPedido(clienteId, request))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
                     ResponseStatusException rse = (ResponseStatusException) ex;
@@ -206,7 +204,7 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_StatusDeveSerABERTO() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(0L);
 
         EnderecoRequest enderecoNovo = new EnderecoRequest();
@@ -221,7 +219,7 @@ class PedidoServiceTest {
         Pedido pedidoSalvo = new Pedido();
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
-        pedidoService.criarPedido(request);
+        pedidoService.criarPedido(clienteId, request);
 
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(captor.capture());
@@ -230,7 +228,7 @@ class PedidoServiceTest {
 
     @Test
     void criarPedido_DeveSalvarListaDeFotos() {
-        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(0L);
 
         EnderecoRequest enderecoNovo = new EnderecoRequest();
@@ -246,7 +244,7 @@ class PedidoServiceTest {
         Pedido pedidoSalvo = new Pedido();
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
-        pedidoService.criarPedido(request);
+        pedidoService.criarPedido(clienteId, request);
 
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(captor.capture());

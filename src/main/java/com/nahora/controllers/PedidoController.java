@@ -1,6 +1,8 @@
 package com.nahora.controllers;
 
 import com.nahora.dto.request.PedidoRequest;
+import com.nahora.dto.response.PedidoResponse;
+import com.nahora.model.Cliente;
 import com.nahora.model.Pedido;
 import com.nahora.services.PedidoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,8 +24,11 @@ public class PedidoController {
 
     @PostMapping
     @Operation(summary = "Cria um pedido associado a um cliente")
-    public ResponseEntity<Pedido> criarPedido(@Valid @RequestBody PedidoRequest request) {
-        Pedido novoPedido = pedidoService.criarPedido(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(novoPedido);
+    public ResponseEntity<PedidoResponse> criarPedido(
+            @Valid @RequestBody PedidoRequest request,
+            @AuthenticationPrincipal Cliente clienteAutenticado) {
+        Long clienteId = clienteAutenticado.getId();
+        Pedido novoPedido = pedidoService.criarPedido(clienteId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.toResponseDTO(novoPedido));
     }
 }
