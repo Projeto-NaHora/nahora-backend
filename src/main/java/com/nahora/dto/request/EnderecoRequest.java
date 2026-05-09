@@ -1,7 +1,6 @@
 package com.nahora.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -33,9 +32,7 @@ public class EnderecoRequest {
     @Pattern(regexp = "\\d{5}-?\\d{3}", message = "CEP inválido")
     private String cep;
 
-    @NotNull
     private Double latitude;
 
-    @NotNull
     private Double longitude;
 }
