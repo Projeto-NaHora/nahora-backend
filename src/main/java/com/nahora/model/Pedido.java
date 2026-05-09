@@ -53,4 +53,7 @@ public class Pedido {
     @CreatedDate
     @Column(name = "criado_em", updatable = false)
     private LocalDateTime criadoEm;
+
+    @Column(name = "data_desejada")
+    private LocalDateTime dataDesejada;
 }
