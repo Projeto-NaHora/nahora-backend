@@ -131,6 +131,7 @@ class AuthServiceTest {
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
         when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
+        when(profissionalRepository.existsByCpf("12345678901")).thenReturn(false);
         when(valueOperations.get("phone_verified:" + request.telefone())).thenReturn("true");
         when(passwordEncoder.encode(request.senha())).thenReturn("hash");
 
@@ -176,6 +177,45 @@ class AuthServiceTest {
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
         assertEquals("E-mail já está em uso.", ex.getReason());
         verify(profissionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear registro de profissional se o CPF já estiver em uso")
+    void registerProfissional_CpfJaEmUso() {
+        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, new java.math.BigDecimal("150.00"), List.of("Recife"), "url"
+        );
+
+        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
+        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
+        when(profissionalRepository.existsByCpf("12345678901")).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.registerProfissional(request));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("CPF já está em uso.", ex.getReason());
+        verify(profissionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve normalizar CPF com pontuação antes de verificar e salvar")
+    void registerProfissional_NormalizaCpfComPontuacao() {
+        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
+                CategoriaServico.ELETRICA, "123.456.789-01", List.of("Eletricista"), 5, new java.math.BigDecimal("150.00"), List.of("Recife"), "url"
+        );
+
+        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
+        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
+        when(profissionalRepository.existsByCpf("12345678901")).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.registerProfissional(request));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(profissionalRepository).existsByCpf("12345678901");
     }
 
     @Test

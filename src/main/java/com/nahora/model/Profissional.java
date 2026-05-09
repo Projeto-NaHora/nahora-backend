@@ -44,8 +44,8 @@ public class Profissional extends Usuario {
     @Column(name = "documento_url")
     private String documentoUrl;
 
-    @Column(name = "Anos_experiencia")
-    Integer anosExperiencia;
+    @Column(name = "anos_experiencia")
+    private Integer anosExperiencia;
 
     @Column(name = "valor_inicial")
     private BigDecimal valorInicial;

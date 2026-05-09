@@ -3,20 +3,16 @@ package com.nahora.services;
 import com.nahora.dto.request.ForgotPasswordRequest;
 import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
+import com.nahora.dto.request.RegisterProfissionalRequest;
 import com.nahora.dto.request.ResetPasswordRequest;
 import com.nahora.dto.response.AuthResponse;
 import com.nahora.model.Cliente;
-import com.nahora.model.Usuario;
-import com.nahora.dto.request.RegisterProfissionalRequest;
-import com.nahora.dto.response.AuthResponse;
-import com.nahora.model.Cliente;
 import com.nahora.model.Profissional;
+import com.nahora.model.Usuario;
 import com.nahora.model.enums.StatusVerificacao;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.ProfissionalRepository;
 import com.nahora.repositories.UsuarioRepository;
-
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -209,7 +205,8 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Telefone já está em uso.");
         }
 
-        if(profissionalRepository.existsByCpf(request.cpf())){
+        String cpf = request.cpf().replaceAll("[^0-9]", "");
+        if (profissionalRepository.existsByCpf(cpf)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CPF já está em uso.");
         }
 
@@ -232,7 +229,7 @@ public class AuthService {
         profissional.setAtivo(true);
     
         // especificos de profissional
-        profissional.setCpf(request.cpf());
+        profissional.setCpf(cpf);
         profissional.setAreaAtuacao(request.areaAtuacao());
         profissional.setEspecialidades(request.especialidades());
         profissional.setAnosExperiencia(request.anosExperiencia());
@@ -245,7 +242,7 @@ public class AuthService {
         profissional.setDisponivel(false);
         profissional.setPerfilCompleto(true);
 
-        profissionalRepository.save(profissional);
+        profissional = profissionalRepository.save(profissional);
 
         String accessToken = jwtService.generateAccessToken(profissional);
         String refreshToken = jwtService.generateRefreshToken(profissional);

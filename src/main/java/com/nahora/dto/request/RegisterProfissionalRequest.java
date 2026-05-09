@@ -39,7 +39,7 @@ public record RegisterProfissionalRequest(
         @NotBlank @CPF(message = "CPF inválido")
         String cpf,
 
-        @NotEmpty(message = "A área de atuação é obrigatória")
+        @NotEmpty(message = "As especialidades são obrigatórias")
         List<String> especialidades,
 
         @NotNull(message = "Anos de experiência são obrigatórios")
