@@ -4,6 +4,7 @@ import com.nahora.dto.request.ForgotPasswordRequest;
 import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
 import com.nahora.dto.request.ResetPasswordRequest;
+import com.nahora.dto.request.RegisterProfissionalRequest;
 import com.nahora.dto.request.SendOtpRequest;
 import com.nahora.dto.request.VerifyOtpRequest;
 import com.nahora.dto.response.AuthResponse;
@@ -63,5 +64,12 @@ public class AuthController {
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/register/profissional")
+    @Operation(summary = "Cadastra um novo profissional na plataforma gerando Token JWT")
+    public ResponseEntity<AuthResponse> registerProfissional(@Valid @RequestBody RegisterProfissionalRequest request) {
+        AuthResponse response = authService.registerProfissional(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

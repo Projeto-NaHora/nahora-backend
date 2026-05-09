@@ -3,11 +3,15 @@ package com.nahora.services;
 import com.nahora.dto.request.ForgotPasswordRequest;
 import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
+import com.nahora.dto.request.RegisterProfissionalRequest;
 import com.nahora.dto.request.ResetPasswordRequest;
 import com.nahora.dto.response.AuthResponse;
 import com.nahora.model.Cliente;
+import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
+import com.nahora.model.enums.StatusVerificacao;
 import com.nahora.repositories.ClienteRepository;
+import com.nahora.repositories.ProfissionalRepository;
 import com.nahora.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +34,7 @@ public class AuthService {
 
     private final StringRedisTemplate redisTemplate;
     private final ClienteRepository clienteRepository;
+    private final ProfissionalRepository profissionalRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -187,4 +193,63 @@ public class AuthService {
 
         return new AuthResponse(accessToken, refreshToken);
     }
+    @Transactional
+    public AuthResponse registerProfissional(RegisterProfissionalRequest request) {
+        
+        if (usuarioRepository.existsByEmail(request.email())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já está em uso.");
+        }
+        
+        
+        if(usuarioRepository.existsByTelefone(request.telefone())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Telefone já está em uso.");
+        }
+
+        String cpf = request.cpf().replaceAll("[^0-9]", "");
+        if (profissionalRepository.existsByCpf(cpf)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CPF já está em uso.");
+        }
+
+         // Verifica se o telefone passou pela validação de OTP
+        String verifiedStatus = redisTemplate.opsForValue().get("phone_verified:" + request.telefone());
+        if (!"true".equals(verifiedStatus)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Telefone não verificado ou verificação expirou.");
+        }
+
+        // Limpa a verificação do redis para evitar reuso imediato na mesma sessão
+        redisTemplate.delete("phone_verified:" + request.telefone());
+
+
+        
+        Profissional profissional = new Profissional();
+        profissional.setNome(request.nome());
+        profissional.setEmail(request.email());
+        profissional.setTelefone(request.telefone());
+        profissional.setSenha(passwordEncoder.encode(request.senha()));
+        profissional.setAtivo(true);
+    
+        // especificos de profissional
+        profissional.setCpf(cpf);
+        profissional.setAreaAtuacao(request.areaAtuacao());
+        profissional.setEspecialidades(request.especialidades());
+        profissional.setAnosExperiencia(request.anosExperiencia());
+        profissional.setValorInicial(request.valorInicial());
+        profissional.setCategoriasAtendidas(List.of(request.categoriaServico()));
+        profissional.setDocumentoUrl(request.documentoUrl());
+
+        // o profissional vai ter os documentos enviados, mas ainda não verificados
+        profissional.setStatusVerificacao(StatusVerificacao.PENDENTE);
+        profissional.setDisponivel(false);
+        profissional.setPerfilCompleto(true);
+
+        profissional = profissionalRepository.save(profissional);
+
+        String accessToken = jwtService.generateAccessToken(profissional);
+        String refreshToken = jwtService.generateRefreshToken(profissional);
+
+        return new AuthResponse(accessToken, refreshToken);
+
+
+    }
+
 }
