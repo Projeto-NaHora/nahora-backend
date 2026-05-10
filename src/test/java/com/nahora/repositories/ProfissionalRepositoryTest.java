@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.TestPropertySource;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 
@@ -42,8 +41,7 @@ class ProfissionalRepositoryTest {
         // Dados de Profissional
         profissional.setCpf("12345678909");
         profissional.setAnosExperiencia(5);
-        profissional.setValorInicial(new BigDecimal("150.00"));
-        profissional.setStatusVerificacao(StatusVerificacao.NAO_ENVIADO); 
+        profissional.setStatusVerificacao(StatusVerificacao.NAO_ENVIADO);
         profissional.setPerfilCompleto(false);
 
        
