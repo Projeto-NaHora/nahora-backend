@@ -9,7 +9,6 @@ import lombok.Setter;
 import org.hibernate.validator.constraints.br.CPF;
 import org.locationtech.jts.geom.Point;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Entity
@@ -41,14 +40,17 @@ public class Profissional extends Usuario {
 
     private Boolean disponivel = false;
 
-    @Column(name = "documento_url")
-    private String documentoUrl;
+    @Column(name = "rg_frente_url")
+    private String rgFrenteUrl;
+
+    @Column(name = "rg_verso_url")
+    private String rgVersoUrl;
+
+    @Column(name = "selfie_url")
+    private String selfieUrl;
 
     @Column(name = "anos_experiencia")
     private Integer anosExperiencia;
-
-    @Column(name = "valor_inicial")
-    private BigDecimal valorInicial;
 
     @CPF
     @Column(unique = true)

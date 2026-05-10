@@ -1,6 +1,5 @@
 package com.nahora.dto.request;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import org.hibernate.validator.constraints.br.CPF;
@@ -45,14 +44,17 @@ public record RegisterProfissionalRequest(
         @NotNull(message = "Anos de experiência são obrigatórios")
         Integer anosExperiencia,
 
-        @NotNull(message = "O valor inicial é obrigatório")
-        BigDecimal valorInicial,
-
         @NotEmpty(message = "A área de atuação é obrigatória")
         List<String> areaAtuacao,
 
-        @NotBlank(message = "O URL do documento é obrigatório")
-        String documentoUrl
+        @NotBlank(message = "A URL do RG (frente) é obrigatória")
+        String rgFrenteUrl,
+
+        @NotBlank(message = "A URL do RG (verso) é obrigatória")
+        String rgVersoUrl,
+
+        @NotBlank(message = "A URL da selfie é obrigatória")
+        String selfieUrl
 
 
 ) {}

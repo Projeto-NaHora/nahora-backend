@@ -47,6 +47,12 @@ jwt:
   expiration-ms: ${JWT_EXPIRATION_MS:900000}
   refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
 
+storage:
+  bucket: ${STORAGE_BUCKET:nahora-dev}
+  access-key: ${STORAGE_ACCESS_KEY:dev}
+  secret-key: ${STORAGE_SECRET_KEY:dev}
+  endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

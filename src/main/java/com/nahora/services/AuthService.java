@@ -99,7 +99,8 @@ public class AuthService {
 
         return new AuthResponse(
                 jwtService.generateAccessToken(usuario),
-                jwtService.generateRefreshToken(usuario)
+                jwtService.generateRefreshToken(usuario),
+                jwtService.extractTipoUsuario(usuario)
         );
     }
 
@@ -193,7 +194,7 @@ public class AuthService {
         String accessToken = jwtService.generateAccessToken(cliente);
         String refreshToken = jwtService.generateRefreshToken(cliente);
 
-        return new AuthResponse(accessToken, refreshToken);
+        return new AuthResponse(accessToken, refreshToken, jwtService.extractTipoUsuario(cliente));
     }
     @Transactional
     public AuthResponse registerProfissional(RegisterProfissionalRequest request) {
@@ -235,9 +236,10 @@ public class AuthService {
         profissional.setAreaAtuacao(request.areaAtuacao());
         profissional.setEspecialidades(request.especialidades());
         profissional.setAnosExperiencia(request.anosExperiencia());
-        profissional.setValorInicial(request.valorInicial());
         profissional.setCategoriasAtendidas(List.of(request.categoriaServico()));
-        profissional.setDocumentoUrl(request.documentoUrl());
+        profissional.setRgFrenteUrl(request.rgFrenteUrl());
+        profissional.setRgVersoUrl(request.rgVersoUrl());
+        profissional.setSelfieUrl(request.selfieUrl());
 
         // o profissional vai ter os documentos enviados, mas ainda não verificados
         profissional.setStatusVerificacao(StatusVerificacao.PENDENTE);
@@ -249,7 +251,7 @@ public class AuthService {
         String accessToken = jwtService.generateAccessToken(profissional);
         String refreshToken = jwtService.generateRefreshToken(profissional);
 
-        return new AuthResponse(accessToken, refreshToken);
+        return new AuthResponse(accessToken, refreshToken, jwtService.extractTipoUsuario(profissional));
 
 
     }

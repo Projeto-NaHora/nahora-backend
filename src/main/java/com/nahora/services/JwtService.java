@@ -1,6 +1,9 @@
 package com.nahora.services;
 
+import com.nahora.model.Cliente;
+import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
+import com.nahora.model.enums.TipoUsuario;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -35,14 +38,20 @@ public class JwtService {
     }
 
     public String generateAccessToken(Usuario user) {
+        TipoUsuario tipo = user instanceof Profissional ? TipoUsuario.PROFISSIONAL : TipoUsuario.CLIENTE;
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("id", user.getId())
                 .claim("nome", user.getNome())
+                .claim("tipoUsuario", tipo.name())
                 .issuedAt(new Date())
                 .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    public TipoUsuario extractTipoUsuario(Usuario user) {
+        return user instanceof Profissional ? TipoUsuario.PROFISSIONAL : TipoUsuario.CLIENTE;
     }
 
     public String extractEmail(String token) {
