@@ -50,7 +50,7 @@ jwt:
 storage:
   bucket: ${STORAGE_BUCKET:nahora-dev}
   access-key: ${STORAGE_ACCESS_KEY:dev}
-  secret-key: ${STORAGE_SECRET_KEY:dev}
+  secret-key: ${STORAGE_SECRET_KEY:dev12345}
   endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
 
 springdoc:
