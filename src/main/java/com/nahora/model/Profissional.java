@@ -5,6 +5,8 @@ import com.nahora.model.enums.StatusVerificacao;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.hibernate.validator.constraints.br.CPF;
 import org.locationtech.jts.geom.Point;
 
 import java.util.List;
@@ -28,17 +30,46 @@ public class Profissional extends Usuario {
     @Column(name = "raio_atuacao")
     private Double raioAtuacao;
 
+    @ElementCollection
+    @CollectionTable(name = "profissional_especialidades", joinColumns = @JoinColumn(name = "profissional_id"))
+    @Column(name = "especialidade")
+    private List<String> especialidades;
+
     @Column(name = "total_servicos_executados")
     private Integer totalServicosExecutados = 0;
 
     private Boolean disponivel = false;
 
-    @Column(name = "documento_url")
-    private String documentoUrl;
+    @Column(name = "rg_frente_url")
+    private String rgFrenteUrl;
+
+    @Column(name = "rg_verso_url")
+    private String rgVersoUrl;
+
+    @Column(name = "selfie_url")
+    private String selfieUrl;
+
+    @Column(name = "anos_experiencia")
+    private Integer anosExperiencia;
+
+    @CPF
+    @Column(unique = true)
+    private String cpf;
+
+    @ElementCollection
+    @CollectionTable(
+            name = "profissional_areas_atuacao",
+            joinColumns = @JoinColumn(name = "profissional_id")
+    )
+    @Column(name = "bairro_ou_area")
+    private List<String> areaAtuacao;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status_verificacao")
     private StatusVerificacao statusVerificacao;
+
+    @Column(name = "perfil_completo")
+    private Boolean perfilCompleto = false;
 
     @Column(name = "plano_plus")
     private Boolean planoPlus = false;
