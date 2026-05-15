@@ -1,5 +1,5 @@
 package com.nahora.model.enums;
 
 public enum StatusProposta {
-    PENDENTE, ACEITA, REJEITADA, EXPIRADA
+    ATIVA, ACEITA, RECUSADA, CANCELADA, EXPIRADA
 }
