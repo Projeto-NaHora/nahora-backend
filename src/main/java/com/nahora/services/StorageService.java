@@ -9,6 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.IOException;
 import java.util.Set;
@@ -44,8 +45,10 @@ public class StorageService {
                             .build(),
                     RequestBody.fromBytes(file.getBytes())
             );
+        } catch (S3Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Falha ao comunicar com o serviço de armazenamento.");
         } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Falha ao fazer upload do arquivo.");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Falha ao ler o arquivo para upload.");
         }
 
         return "%s/%s/%s".formatted(endpoint, bucket, key);
