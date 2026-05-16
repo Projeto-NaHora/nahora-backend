@@ -54,7 +54,7 @@ public class PedidoService {
         Pedido pedido = new Pedido();
         pedido.setCliente(cliente);
         pedido.setCategoria(request.getCategoria());
-        pedido.setDescricao(request.getDescricao());
+        pedido.setDescricao(request.getDescricao().trim());
         pedido.setUrgencia(request.getUrgencia());
         pedido.setOrcamentoEstimado(request.getOrcamentoEstimado());
         pedido.setDataDesejada(request.getDataDesejada());
