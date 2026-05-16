@@ -23,8 +23,10 @@ public class PedidoRequest {
     @NotBlank(message = "Descrição não pode estar em branco")
     @Size(min = 20, max = 500, message = "Descrição deve ter no mínimo 20 e no máximo 500 caracteres")
     @Schema(
-            description = "Descrição detalhada do serviço que o cliente precisa.",
+            description = "Descrição detalhada do serviço que o cliente precisa. Mínimo de 20 e máximo de 500 caracteres.",
             example = "Meu chuveiro elétrico fez um cheiro de queimado e não esquenta mais.",
+            minLength = 20,
+            maxLength = 500,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     private String descricao;

@@ -173,6 +173,20 @@ class PedidoControllerTest {
     }
 
     @Test
+    void criarPedido_ComDescricaoMenorQue20Caracteres_DeveRetornar400() throws Exception {
+        PedidoRequest request = new PedidoRequest();
+        request.setCategoria(CategoriaServico.ELETRICA);
+        request.setDescricao("curta demais");
+        request.setUrgencia(Urgencia.NORMAL);
+        request.setDataDesejada(LocalDateTime.now().plusDays(1));
+
+        mockMvc.perform(post("/api/v1/pedidos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void criarPedido_ComLimiteDePedidosExcedido_DeveRetornar409() throws Exception {
         PedidoRequest request = new PedidoRequest();
         request.setCategoria(CategoriaServico.ELETRICA);
