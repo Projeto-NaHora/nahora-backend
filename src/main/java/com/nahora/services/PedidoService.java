@@ -233,8 +233,8 @@ public class PedidoService {
     private PropostaResponseDTO mapToPropostaResponseDTO(Proposta proposta) {
         var prof = proposta.getProfissional();
 
-        List<PropostaResponseDTO.JanelaHorarioDTO> horarios = proposta.getHorariosDisponiveis().stream()
-                .map(h -> new PropostaResponseDTO.JanelaHorarioDTO(h.getInicio(), h.getFim()))
+        List<PropostaResponseDTO.JanelaHorarioDTO> horarios = proposta.getHorarios().stream()
+                .map(h -> new PropostaResponseDTO.JanelaHorarioDTO(h.getDataHoraInicio(), h.getDataHoraFim()))
                 .collect(Collectors.toList());
 
         return new PropostaResponseDTO(

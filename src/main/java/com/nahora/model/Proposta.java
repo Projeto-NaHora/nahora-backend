@@ -31,10 +31,6 @@ public class Proposta {
     @JoinColumn(name = "profissional_id")
     private Profissional profissional;
   
-    @ElementCollection
-    @CollectionTable(name = "proposta_horarios", joinColumns = @JoinColumn(name = "proposta_id"))
-    private List<JanelaHorario> horariosDisponiveis = new ArrayList<>();
-
     @Column(name = "valor_oferecido", nullable = false)
     private BigDecimal valorOferecido;
 

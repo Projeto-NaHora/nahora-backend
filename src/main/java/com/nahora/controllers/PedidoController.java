@@ -70,14 +70,14 @@ public class PedidoController {
     })
     public ResponseEntity<AceitarPropostaResponseDTO> aceitarProposta(
             @PathVariable Long pedidoId,
-            @PathVariable Long propuestaId,
+            @PathVariable Long propostaId,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
 
         if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem aceitar propostas.");
         }
 
-        AceitarPropostaResponseDTO response = pedidoService.aceitarProposta(pedidoId, propuestaId, clienteAutenticado.getId());
+        AceitarPropostaResponseDTO response = pedidoService.aceitarProposta(pedidoId, propostaId, clienteAutenticado.getId());
         return ResponseEntity.ok(response);
     }
 }
