@@ -2,14 +2,14 @@ package com.nahora.services;
 
 import com.nahora.dto.request.EnderecoRequest;
 import com.nahora.dto.request.PedidoRequest;
-import com.nahora.model.Cliente;
-import com.nahora.model.Endereco;
-import com.nahora.model.Pedido;
+import com.nahora.model.*;
 import com.nahora.model.enums.CategoriaServico;
 import com.nahora.model.enums.StatusPedido;
+import com.nahora.model.enums.StatusProposta;
 import com.nahora.model.enums.Urgencia;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.PedidoRepository;
+import com.nahora.repositories.PropostaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -27,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,6 +45,9 @@ class PedidoServiceTest {
 
     @Mock
     private ClienteRepository clienteRepository;
+
+    @Mock
+    private PropostaRepository propostaRepository;
 
     @InjectMocks
     private PedidoService pedidoService;
@@ -251,5 +255,154 @@ class PedidoServiceTest {
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(captor.capture());
         assertThat(captor.getValue().getFotos()).containsExactly("foto1", "foto2", "foto3");
+    }
+
+    @Test
+    void aceitarProposta_ComDadosValidos_DeveAtualizarStatusEDispararMocks() {
+        // Arrange
+        Pedido pedido = new Pedido();
+        pedido.setId(10L);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.ABERTO);
+
+        Profissional profVencedor = new Profissional();
+        profVencedor.setId(100L);
+        profVencedor.setNome("Carlos Silva");
+
+        Profissional profPerdedor = new Profissional();
+        profPerdedor.setId(200L);
+
+        Proposta propostaEscolhida = new Proposta();
+        propostaEscolhida.setId(50L);
+        propostaEscolhida.setPedido(pedido);
+        propostaEscolhida.setProfissional(profVencedor);
+        propostaEscolhida.setStatus(StatusProposta.PENDENTE);
+        propostaEscolhida.setHorariosDisponiveis(List.of());
+
+        Proposta propostaRecusada = new Proposta();
+        propostaRecusada.setId(51L);
+        propostaRecusada.setPedido(pedido);
+        propostaRecusada.setProfissional(profPerdedor);
+        propostaRecusada.setStatus(StatusProposta.PENDENTE);
+
+        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+        when(propostaRepository.findById(50L)).thenReturn(Optional.of(propostaEscolhida));
+        when(propostaRepository.findByPedidoId(10L)).thenReturn(List.of(propostaEscolhida, propostaRecusada));
+
+        // Act
+        var resposta = pedidoService.aceitarProposta(10L, 50L, clienteId);
+
+        // Assert
+        assertThat(resposta).isNotNull();
+        assertThat(pedido.getStatus()).isEqualTo(StatusPedido.EM_ANDAMENTO);
+        assertThat(pedido.getProfissionalAtribuido()).isEqualTo(profVencedor);
+        assertThat(propostaEscolhida.getStatus()).isEqualTo(StatusProposta.ACEITA);
+        assertThat(propostaRecusada.getStatus()).isEqualTo(StatusProposta.REJEITADA);
+
+        verify(pedidoRepository).save(pedido);
+    }
+
+    @Test
+    void aceitarProposta_UsuarioNaoForDonoDoPedido_DeveLancar403() {
+        // Arrange
+        Pedido pedido = new Pedido();
+        pedido.setId(10L);
+        Cliente outroCliente = new Cliente();
+        outroCliente.setId(999L); // ID diferente do cliente autenticado
+        pedido.setCliente(outroCliente);
+
+        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+
+        // Act & Assert
+        assertThatThrownBy(() -> pedidoService.aceitarProposta(10L, 50L, clienteId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(rse.getReason()).contains("não é o dono do pedido");
+                });
+
+        verify(pedidoRepository, never()).save(any());
+    }
+
+    @Test
+    void aceitarProposta_PedidoNaoEstaAberto_DeveLancar422() {
+        // Arrange
+        Pedido pedido = new Pedido();
+        pedido.setId(10L);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO); // Não está ABERTO
+
+        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+
+        // Act & Assert
+        assertThatThrownBy(() -> pedidoService.aceitarProposta(10L, 50L, clienteId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                    assertThat(rse.getReason()).contains("não está com status ABERTO");
+                });
+    }
+
+    @Test
+    void aceitarProposta_PropostaNaoPertenceAoPedido_DeveLancar404() {
+        // Arrange
+        Pedido pedido = new Pedido();
+        pedido.setId(10L);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.ABERTO);
+
+        Pedido outroPedido = new Pedido();
+        outroPedido.setId(99L); // ID de pedido diferente
+
+        Proposta propostaIncompativel = new Proposta();
+        propostaIncompativel.setId(50L);
+        propostaIncompativel.setPedido(outroPedido);
+
+        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+        when(propostaRepository.findById(50L)).thenReturn(Optional.of(propostaIncompativel));
+
+        // Act & Assert
+        assertThatThrownBy(() -> pedidoService.aceitarProposta(10L, 50L, clienteId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(rse.getReason()).contains("não pertence a este pedido");
+                });
+    }
+
+    @Test
+    void listarPropostasAtivas_DeveRetornarApenasPendentesOrdenadas() {
+        // Arrange
+        Pedido pedido = new Pedido();
+        pedido.setId(10L);
+        pedido.setCliente(cliente);
+
+        Profissional p1 = new Profissional();
+        p1.setNotaMedia(4.5);
+        Proposta prop1 = new Proposta();
+        prop1.setValor(BigDecimal.valueOf(200.00));
+        prop1.setProfissional(p1);
+        prop1.setHorariosDisponiveis(List.of());
+
+        Profissional p2 = new Profissional();
+        p2.setNotaMedia(5.0);
+        Proposta prop2 = new Proposta();
+        prop2.setValor(BigDecimal.valueOf(100.00)); // Mais barata e maior nota
+        prop2.setProfissional(p2);
+        prop2.setHorariosDisponiveis(List.of());
+
+        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+        when(propostaRepository.findByPedidoIdAndStatus(10L, StatusProposta.PENDENTE))
+                .thenReturn(new ArrayList<>(List.of(prop1, prop2)));
+
+        // Act
+        var resultadoPreco = pedidoService.listarPropostasAtivas(10L, clienteId, "preco");
+
+        // Assert
+        assertThat(resultadoPreco).hasSize(2);
+        assertThat(resultadoPreco.get(0).valorProposto()).isEqualTo(BigDecimal.valueOf(100.00)); // Menor preço primeiro
     }
 }

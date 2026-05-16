@@ -10,13 +10,17 @@ spring:
       enabled: true   # Virtual Threads (Project Loom)
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/nahora}
-    username: ${DB_USERNAME:nahora}
-    password: ${DB_PASSWORD:nahora_dev}
+#    url: ${DB_URL:jdbc:postgresql://localhost:5432/nahora}
+#    username: ${DB_USERNAME:nahora}
+#    password: ${DB_PASSWORD:nahora_dev}
+    url: jdbc:postgresql://localhost:5432/nahora
+    username: nahora
+    password: nahora_dev
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
+      database-platform: org.hibernate.spatial.dialect.postgis.PostgisDialect # ◄ ADICIONE ESTA LINHA
       ddl-auto: none    # Flyway gerencia todo o DDL
     open-in-view: false
     show-sql: false

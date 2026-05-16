@@ -10,6 +10,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "proposta")
@@ -28,6 +30,10 @@ public class Proposta {
     @ManyToOne(optional = false)
     @JoinColumn(name = "profissional_id")
     private Profissional profissional;
+
+    @ElementCollection
+    @CollectionTable(name = "proposta_horarios", joinColumns = @JoinColumn(name = "proposta_id"))
+    private List<JanelaHorario> horariosDisponiveis = new ArrayList<>();
 
     @Column(nullable = false)
     private BigDecimal valor;
