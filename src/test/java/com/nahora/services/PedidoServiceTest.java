@@ -301,14 +301,14 @@ class PedidoServiceTest {
         propostaEscolhida.setId(50L);
         propostaEscolhida.setPedido(pedido);
         propostaEscolhida.setProfissional(profVencedor);
-        propostaEscolhida.setStatus(StatusProposta.PENDENTE);
+        propostaEscolhida.setStatus(StatusProposta.ATIVA);
         propostaEscolhida.setHorariosDisponiveis(List.of());
 
         Proposta propostaRecusada = new Proposta();
         propostaRecusada.setId(51L);
         propostaRecusada.setPedido(pedido);
         propostaRecusada.setProfissional(profPerdedor);
-        propostaRecusada.setStatus(StatusProposta.PENDENTE);
+        propostaRecusada.setStatus(StatusProposta.ATIVA);
 
         when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
         when(propostaRepository.findById(50L)).thenReturn(Optional.of(propostaEscolhida));
@@ -322,7 +322,7 @@ class PedidoServiceTest {
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.EM_ANDAMENTO);
         assertThat(pedido.getProfissionalAtribuido()).isEqualTo(profVencedor);
         assertThat(propostaEscolhida.getStatus()).isEqualTo(StatusProposta.ACEITA);
-        assertThat(propostaRecusada.getStatus()).isEqualTo(StatusProposta.REJEITADA);
+        assertThat(propostaRecusada.getStatus()).isEqualTo(StatusProposta.RECUSADA);
 
         verify(pedidoRepository).save(pedido);
     }
@@ -408,19 +408,19 @@ class PedidoServiceTest {
         Profissional p1 = new Profissional();
         p1.setNotaMedia(4.5);
         Proposta prop1 = new Proposta();
-        prop1.setValor(BigDecimal.valueOf(200.00));
+        prop1.setValorOferecido(BigDecimal.valueOf(200.00));
         prop1.setProfissional(p1);
         prop1.setHorariosDisponiveis(List.of());
 
         Profissional p2 = new Profissional();
         p2.setNotaMedia(5.0);
         Proposta prop2 = new Proposta();
-        prop2.setValor(BigDecimal.valueOf(100.00)); // Mais barata e maior nota
+        prop2.setValorOferecido(BigDecimal.valueOf(100.00)); // Mais barata e maior nota
         prop2.setProfissional(p2);
         prop2.setHorariosDisponiveis(List.of());
 
         when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
-        when(propostaRepository.findByPedidoIdAndStatus(10L, StatusProposta.PENDENTE))
+        when(propostaRepository.findByPedidoIdAndStatus(10L, StatusProposta.ATIVA))
                 .thenReturn(new ArrayList<>(List.of(prop1, prop2)));
 
         // Act

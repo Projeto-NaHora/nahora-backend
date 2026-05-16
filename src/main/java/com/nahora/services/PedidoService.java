@@ -162,13 +162,13 @@ public class PedidoService {
         }
 
         // Mapeia conceito de Proposta ATIVA para o seu Enum PENDENTE
-        List<Proposta> propostas = propostaRepository.findByPedidoIdAndStatus(pedidoId, StatusProposta.PENDENTE);
+        List<Proposta> propostas = propostaRepository.findByPedidoIdAndStatus(pedidoId, StatusProposta.ATIVA);
 
         // Algoritmos de ordenação baseados no critério de aceite
         if ("avaliacao".equalsIgnoreCase(ordenarPor)) {
             propostas.sort((p1, p2) -> p2.getProfissional().getNotaMedia().compareTo(p1.getProfissional().getNotaMedia()));
         } else if ("preco".equalsIgnoreCase(ordenarPor)) {
-            propostas.sort((p1, p2) -> p1.getValor().compareTo(p2.getValor()));
+            propostas.sort((p1, p2) -> p1.getValorOferecido().compareTo(p2.getValorOferecido()));
         }
 
         return propostas.stream().map(this::mapToPropostaResponseDTO).collect(Collectors.toList());
@@ -206,8 +206,8 @@ public class PedidoService {
         // Mudar o status das outras propostas PENDENTES vinculadas ao pedido para REJEITADA automaticamente
         List<Proposta> todasPropostas = propostaRepository.findByPedidoId(pedidoId);
         for (Proposta p : todasPropostas) {
-            if (!p.getId().equals(propostaId) && p.getStatus() == StatusProposta.PENDENTE) {
-                p.setStatus(StatusProposta.REJEITADA);
+            if (!p.getId().equals(propostaId) && p.getStatus() == StatusProposta.ATIVA) {
+                p.setStatus(StatusProposta.RECUSADA);
 
                 // Mock do encerramento de canais de Chat (UH-27 / Módulo de Mensageria)
                 System.out.println("[CHAT MOCK] Encerrando canal de chat do pedido " + pedidoId + " para o profissional " + p.getProfissional().getId());
@@ -246,7 +246,7 @@ public class PedidoService {
                 prof.getTotalServicosExecutados(),
                 0.0, // Distância simulada
                 proposta.getDescricao(),
-                proposta.getValor(),
+                proposta.getValorOferecido(),
                 horarios,
                 proposta.getStatus()
         );
