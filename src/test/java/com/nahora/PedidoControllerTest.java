@@ -2,10 +2,13 @@ package com.nahora;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nahora.controllers.PedidoController;
 import com.nahora.dto.request.EnderecoRequest;
+import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
 import com.nahora.dto.response.PedidoResponse;
+import com.nahora.dto.response.PedidoResumoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
@@ -21,8 +24,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -39,6 +48,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -74,8 +84,13 @@ class PedidoControllerTest {
             }
         };
 
+        objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter(objectMapper);
+
         mockMvc = MockMvcBuilders.standaloneSetup(pedidoController)
-                .setCustomArgumentResolvers(authPrincipalResolver)
+                .setCustomArgumentResolvers(authPrincipalResolver, new PageableHandlerMethodArgumentResolver())
+                .setMessageConverters(converter)
                 .build();
     }
 
@@ -187,5 +202,56 @@ class PedidoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
+    }
+
+
+    @Test
+    void listarPedidosParaProfissional_DeveRetornar200_ComListaDePedidos() throws Exception {
+        PedidoResumoResponse resumo = PedidoResumoResponse.builder()
+                .id(1L)
+                .descricao("Conserto de chuveiro...")
+                .categoria(CategoriaServico.ELETRICA)
+                .distanciaKm(5.5)
+                .urgente(true)
+                .contadorPropostas(2)
+                .dataPublicacao(LocalDateTime.now())
+                .build();
+
+        Page<PedidoResumoResponse> pageMock = new PageImpl<>(List.of(resumo), PageRequest.of(0, 10), 1);
+
+        when(pedidoService.listarPedidosComFiltros(any(PedidoFiltroRequest.class), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos/disponiveis")
+                        .param("categoria", "ELETRICA")
+                        .param("urgente", "true")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[0].categoria").value("ELETRICA"))
+                .andExpect(jsonPath("$.content[0].distanciaKm").value(5.5))
+                .andExpect(jsonPath("$.content[0].urgente").value(true));
+    }
+
+    @Test
+    void listarPedidosParaProfissional_QuandoPaginaVazia_DeveRetornar200() throws Exception {
+        Page<PedidoResumoResponse> pageMock = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+
+        when(pedidoService.listarPedidosComFiltros(any(PedidoFiltroRequest.class), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos/disponiveis"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty());
+    }
+
+    @Test
+    void listarPedidosParaProfissional_QuandoProfissionalSemLocalizacao_DeveRetornar400() throws Exception {
+        when(pedidoService.listarPedidosComFiltros(any(PedidoFiltroRequest.class), any(Pageable.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Profissional não possui localização"));
+
+        mockMvc.perform(get("/api/v1/pedidos/disponiveis"))
+                .andExpect(status().isBadRequest());
     }
 }

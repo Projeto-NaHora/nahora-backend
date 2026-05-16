@@ -1,20 +1,34 @@
 package com.nahora.services;
 
+import com.nahora.dto.request.PedidoDistanceRequest;
+import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
 import com.nahora.dto.response.EnderecoResponse;
 import com.nahora.dto.response.PedidoResponse;
+import com.nahora.dto.response.PedidoResumoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
+import com.nahora.model.Profissional;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.PedidoRepository;
+import com.nahora.repositories.ProfissionalRepository;
+import com.nahora.repositories.PropostaRepository;
+import com.nahora.repositories.specification.PedidoSpecifications;
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,6 +42,8 @@ public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final ClienteRepository clienteRepository;
+    private final PropostaRepository propostaRepository;
+    private final ProfissionalRepository profissionalRepository;
 
     private static final Set<StatusPedido> STATUS_EM_ABERTO = Set.of(
             StatusPedido.ABERTO,
@@ -140,5 +156,62 @@ public class PedidoService {
             response.setEndereco(enderecoResponse);
         }
         return response;
+    }
+
+    private Profissional getProfissionalAutenticado() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+        String email = authentication.getName();
+        return profissionalRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profissional não encontrado"));
+    }
+
+    public Page<PedidoResumoResponse> listarPedidosComFiltros(
+            PedidoFiltroRequest filtro,
+            Pageable pageable) {
+
+        Profissional profissional = getProfissionalAutenticado();
+        Point localizacao = profissional.getLocalizacao();
+        Double raioAtuacao = profissional.getRaioAtuacao();
+        if (localizacao == null || raioAtuacao == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profissional não possui localização ou raio de atuação configurados");
+        }
+
+        Specification<Pedido> spec = Specification
+                .where(PedidoSpecifications.isAberto())
+                .and(PedidoSpecifications.hasCategoria(filtro.getCategoria()))
+                .and(PedidoSpecifications.isUrgente(filtro.getUrgente()));
+
+        PedidoFiltroRequest.SortBy sortBy = filtro.getSortBy();
+        if (sortBy == null) {
+            sortBy = PedidoFiltroRequest.SortBy.MAIS_RECENTES;
+        }
+
+        Sort sort;
+        switch (sortBy) {
+            case MAIS_RECENTES -> sort = Sort.by(Sort.Direction.DESC, "criadoEm");
+            case MAIS_PROXIMOS -> sort = Sort.by(Sort.Direction.ASC, "distanciaKm");
+            case URGENTES -> sort = Sort.by(Sort.Direction.DESC, "urgente")
+                    .and(Sort.by(Sort.Direction.DESC, "criadoEm"));
+            default -> sort = Sort.by(Sort.Direction.DESC, "criadoEm");
+        }
+
+        Pageable pageableComSort = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort
+        );
+
+        Page<PedidoDistanceRequest> dtoPage = pedidoRepository.findWithFiltersAndDistance(
+                localizacao, raioAtuacao, spec, pageableComSort
+        );
+
+        return dtoPage.map(dto -> {
+            int numPropostas = propostaRepository.countByPedidoId(dto.getPedido().getId());
+            return PedidoResumoResponse.fromPedido(dto.getPedido(), dto.getDistanciaKm(), numPropostas);
+        });
     }
 }

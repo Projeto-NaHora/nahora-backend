@@ -1,15 +1,21 @@
 package com.nahora.services;
 
 import com.nahora.dto.request.EnderecoRequest;
+import com.nahora.dto.request.PedidoDistanceRequest;
+import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
+import com.nahora.dto.response.PedidoResumoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
+import com.nahora.model.Profissional;
 import com.nahora.model.enums.CategoriaServico;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.model.enums.Urgencia;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.PedidoRepository;
+import com.nahora.repositories.ProfissionalRepository;
+import com.nahora.repositories.PropostaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -21,12 +27,19 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +58,12 @@ class PedidoServiceTest {
     @Mock
     private ClienteRepository clienteRepository;
 
+    @Mock
+    private ProfissionalRepository profissionalRepository;
+
+    @Mock
+    private PropostaRepository propostaRepository;
+
     @InjectMocks
     private PedidoService pedidoService;
 
@@ -54,6 +73,17 @@ class PedidoServiceTest {
     private PedidoRequest request;
     private Endereco enderecoSalvo;
     private final Long clienteId = 1L; // ID fixo para os testes
+    private final Long pedidoId = 1L;
+    private final Long pedidoId2 = 2L;
+
+    private void setupSecurityContextMock(MockedStatic<SecurityContextHolder> securityHolder, String email) {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn(email);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        securityHolder.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+    }
 
     @BeforeEach
     void setUp() {
@@ -251,5 +281,325 @@ class PedidoServiceTest {
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(captor.capture());
         assertThat(captor.getValue().getFotos()).containsExactly("foto1", "foto2", "foto3");
+    }
+
+    @Test
+    void listarPedidosComFiltros_quandoProfissionalNaoTemLocalizacao_lancaBadRequest() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(null);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            Pageable pageable = PageRequest.of(0, 10);
+
+            assertThatThrownBy(() -> pedidoService.listarPedidosComFiltros(filtro, pageable))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                        assertThat(rse.getReason()).contains("localização ou raio de atuação");
+                    });
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_quandoSortByNull_usarMaisRecentes() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            Pageable pageable = PageRequest.of(0, 10);
+            Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+            Pedido pedido = new Pedido();
+            pedido.setId(pedidoId);
+            PedidoDistanceRequest dto = new PedidoDistanceRequest(pedido, 5.0);
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(List.of(dto), expectedPageable, 1L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+            when(propostaRepository.countByPedidoId(pedidoId)).thenReturn(3);
+
+            Page<PedidoResumoResponse> result = pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getContent()).hasSize(1);
+            verify(pedidoRepository).findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable));
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_comSortByMaisRecentes() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            filtro.setSortBy(PedidoFiltroRequest.SortBy.MAIS_RECENTES);
+            Pageable pageable = PageRequest.of(0, 10);
+            Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+            Pedido pedido = new Pedido();
+            pedido.setId(pedidoId);
+            PedidoDistanceRequest dto = new PedidoDistanceRequest(pedido, 5.0);
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(List.of(dto), expectedPageable, 1L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+            when(propostaRepository.countByPedidoId(pedidoId)).thenReturn(2);
+
+            pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            verify(pedidoRepository).findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable));
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_comSortByMaisProximos() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            filtro.setSortBy(PedidoFiltroRequest.SortBy.MAIS_PROXIMOS);
+            Pageable pageable = PageRequest.of(0, 10);
+            Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "distanciaKm"));
+
+            Pedido pedido = new Pedido();
+            pedido.setId(pedidoId);
+            PedidoDistanceRequest dto = new PedidoDistanceRequest(pedido, 5.0);
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(List.of(dto), expectedPageable, 1L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+            when(propostaRepository.countByPedidoId(pedidoId)).thenReturn(2);
+
+            pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            verify(pedidoRepository).findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable));
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_comSortByUrgentes() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            filtro.setSortBy(PedidoFiltroRequest.SortBy.URGENTES);
+            Pageable pageable = PageRequest.of(0, 10);
+            Sort expectedSort = Sort.by(Sort.Direction.DESC, "urgente").and(Sort.by(Sort.Direction.DESC, "criadoEm"));
+            Pageable expectedPageable = PageRequest.of(0, 10, expectedSort);
+
+            Pedido pedido = new Pedido();
+            pedido.setId(pedidoId);
+            PedidoDistanceRequest dto = new PedidoDistanceRequest(pedido, 5.0);
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(List.of(dto), expectedPageable, 1L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+            when(propostaRepository.countByPedidoId(pedidoId)).thenReturn(2);
+
+            pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            verify(pedidoRepository).findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable));
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_aplicaFiltrosCategoriaEUrgente() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            filtro.setCategoria(CategoriaServico.ELETRICA);
+            filtro.setUrgente(true);
+            filtro.setSortBy(PedidoFiltroRequest.SortBy.MAIS_RECENTES);
+            Pageable pageable = PageRequest.of(0, 10);
+            Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+            Pedido pedido = new Pedido();
+            pedido.setId(pedidoId);
+            PedidoDistanceRequest dto = new PedidoDistanceRequest(pedido, 5.0);
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(List.of(dto), expectedPageable, 1L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+            when(propostaRepository.countByPedidoId(pedidoId)).thenReturn(1);
+
+            pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            ArgumentCaptor<Specification<Pedido>> specCaptor = ArgumentCaptor.forClass(Specification.class);
+            verify(pedidoRepository).findWithFiltersAndDistance(eq(ponto), eq(10.0), specCaptor.capture(), eq(expectedPageable));
+            assertThat(specCaptor.getValue()).isNotNull();
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_contaPropostasCorretamente() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            filtro.setSortBy(PedidoFiltroRequest.SortBy.MAIS_RECENTES);
+            Pageable pageable = PageRequest.of(0, 10);
+            Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+            Pedido pedido1 = new Pedido();
+            pedido1.setId(pedidoId);
+            Pedido pedido2 = new Pedido();
+            pedido2.setId(pedidoId2);
+            PedidoDistanceRequest dto1 = new PedidoDistanceRequest(pedido1, 3.0);
+            PedidoDistanceRequest dto2 = new PedidoDistanceRequest(pedido2, 7.0);
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(List.of(dto1, dto2), expectedPageable, 2L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+            when(propostaRepository.countByPedidoId(pedidoId)).thenReturn(5);
+            when(propostaRepository.countByPedidoId(pedidoId2)).thenReturn(2);
+
+            Page<PedidoResumoResponse> result = pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.getContent().get(0).contadorPropostas()).isEqualTo(5);
+            assertThat(result.getContent().get(1).contadorPropostas()).isEqualTo(2);
+            verify(propostaRepository, times(1)).countByPedidoId(pedidoId);
+            verify(propostaRepository, times(1)).countByPedidoId(pedidoId2);
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_quandoNaoHaPedidos_retornaPaginaVazia() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "prof@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
+            ponto.setSRID(4326);
+            Profissional profissional = new Profissional();
+            profissional.setEmail(email);
+            profissional.setLocalizacao(ponto);
+            profissional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            Pageable pageable = PageRequest.of(0, 10);
+            Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+            Page<PedidoDistanceRequest> mockPage = new PageImpl<>(Collections.emptyList(), expectedPageable, 0L);
+
+            when(pedidoRepository.findWithFiltersAndDistance(eq(ponto), eq(10.0), any(Specification.class), eq(expectedPageable)))
+                    .thenReturn(mockPage);
+
+            Page<PedidoResumoResponse> result = pedidoService.listarPedidosComFiltros(filtro, pageable);
+
+            assertThat(result).isEmpty();
+            verify(propostaRepository, never()).countByPedidoId(anyLong());
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_UsuarioNaoAutenticado_DeveLancar401() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            SecurityContext securityContext = mock(SecurityContext.class);
+            when(securityContext.getAuthentication()).thenReturn(null);
+            securityHolder.when(SecurityContextHolder::getContext).thenReturn(securityContext);
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            Pageable pageable = PageRequest.of(0, 10);
+
+            assertThatThrownBy(() -> pedidoService.listarPedidosComFiltros(filtro, pageable))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                        assertThat(rse.getReason()).contains("Usuário não autenticado");
+                    });
+        }
+    }
+
+    @Test
+    void listarPedidosComFiltros_ProfissionalNaoEncontradoNoBanco_DeveLancar404() {
+        try (MockedStatic<SecurityContextHolder> securityHolder = mockStatic(SecurityContextHolder.class)) {
+            String email = "fantasma@email.com";
+            setupSecurityContextMock(securityHolder, email);
+
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+            PedidoFiltroRequest filtro = new PedidoFiltroRequest();
+            Pageable pageable = PageRequest.of(0, 10);
+
+            assertThatThrownBy(() -> pedidoService.listarPedidosComFiltros(filtro, pageable))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+                        assertThat(rse.getReason()).contains("Profissional não encontrado");
+                    });
+        }
     }
 }
