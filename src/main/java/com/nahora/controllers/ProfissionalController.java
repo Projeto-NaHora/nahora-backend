@@ -8,6 +8,7 @@ import com.nahora.services.ProfissionalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/v1/profissionais")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 @Tag(name = "Profissionais", description = "Gerenciamento do perfil e status de profissionais")
 public class ProfissionalController {
 
