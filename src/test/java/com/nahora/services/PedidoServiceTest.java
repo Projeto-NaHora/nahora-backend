@@ -233,6 +233,31 @@ class PedidoServiceTest {
     }
 
     @Test
+    void criarPedido_DeveAplicarTrimNaDescricaoAntesDePeristir() {
+        when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
+        when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(0L);
+
+        request.setDescricao("  Conserto de chuveiro  ");
+        EnderecoRequest enderecoNovo = new EnderecoRequest();
+        enderecoNovo.setLogradouro("Rua A");
+        enderecoNovo.setNumero("1");
+        enderecoNovo.setBairro("Centro");
+        enderecoNovo.setCidade("São Paulo");
+        enderecoNovo.setEstado("SP");
+        enderecoNovo.setCep("00000-000");
+        request.setEndereco(enderecoNovo);
+
+        Pedido pedidoSalvo = new Pedido();
+        when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
+
+        pedidoService.criarPedido(clienteId, request);
+
+        ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
+        verify(pedidoRepository).save(captor.capture());
+        assertThat(captor.getValue().getDescricao()).isEqualTo("Conserto de chuveiro");
+    }
+
+    @Test
     void criarPedido_DeveSalvarListaDeFotos() {
         when(clienteRepository.findById(clienteId)).thenReturn(Optional.of(cliente));
         when(pedidoRepository.countByClienteAndStatusIn(any(), any())).thenReturn(0L);

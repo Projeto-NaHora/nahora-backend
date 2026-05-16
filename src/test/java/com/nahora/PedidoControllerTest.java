@@ -83,7 +83,7 @@ class PedidoControllerTest {
     void criarPedido_ComDadosValidos_DeveRetornar201() throws Exception {
         PedidoRequest request = new PedidoRequest();
         request.setCategoria(CategoriaServico.ELETRICA);
-        request.setDescricao("Troca de tomada");
+        request.setDescricao("Troca de tomada da parede de casa");
         request.setUrgencia(Urgencia.NORMAL);
         request.setOrcamentoEstimado(BigDecimal.valueOf(150));
         request.setDataDesejada(LocalDateTime.now().plusDays(5));
@@ -121,7 +121,7 @@ class PedidoControllerTest {
     void criarPedido_ComDataDesejadaPassada_DeveRetornar400() throws Exception {
         PedidoRequest request = new PedidoRequest();
         request.setCategoria(CategoriaServico.ELETRICA);
-        request.setDescricao("Teste");
+        request.setDescricao("Uma descrição super longa");
         request.setUrgencia(Urgencia.NORMAL);
         request.setDataDesejada(LocalDateTime.now().minusDays(1));
 
@@ -144,7 +144,7 @@ class PedidoControllerTest {
     void criarPedido_ComMaisDe5Fotos_DeveRetornar400() throws Exception {
         PedidoRequest request = new PedidoRequest();
         request.setCategoria(CategoriaServico.ELETRICA);
-        request.setDescricao("Teste");
+        request.setDescricao("Uma descrição super longa");
         request.setUrgencia(Urgencia.NORMAL);
         request.setDataDesejada(LocalDateTime.now().plusDays(1));
         request.setFotos(List.of("foto1", "foto2", "foto3", "foto4", "foto5", "foto6"));
@@ -159,7 +159,7 @@ class PedidoControllerTest {
     void criarPedido_ComClienteInexistente_DeveRetornar404() throws Exception {
         PedidoRequest request = new PedidoRequest();
         request.setCategoria(CategoriaServico.ELETRICA);
-        request.setDescricao("Teste");
+        request.setDescricao("Uma descrição super longa");
         request.setUrgencia(Urgencia.NORMAL);
         request.setDataDesejada(LocalDateTime.now().plusDays(1));
 
@@ -173,10 +173,24 @@ class PedidoControllerTest {
     }
 
     @Test
+    void criarPedido_ComDescricaoMenorQue20Caracteres_DeveRetornar400() throws Exception {
+        PedidoRequest request = new PedidoRequest();
+        request.setCategoria(CategoriaServico.ELETRICA);
+        request.setDescricao("curta demais");
+        request.setUrgencia(Urgencia.NORMAL);
+        request.setDataDesejada(LocalDateTime.now().plusDays(1));
+
+        mockMvc.perform(post("/api/v1/pedidos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void criarPedido_ComLimiteDePedidosExcedido_DeveRetornar409() throws Exception {
         PedidoRequest request = new PedidoRequest();
         request.setCategoria(CategoriaServico.ELETRICA);
-        request.setDescricao("Teste");
+        request.setDescricao("Uma descrição super longa");
         request.setUrgencia(Urgencia.NORMAL);
         request.setDataDesejada(LocalDateTime.now().plusDays(1));
 
