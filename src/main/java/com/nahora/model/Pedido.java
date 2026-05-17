@@ -28,6 +28,10 @@ public class Pedido {
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
+    @ManyToOne
+    @JoinColumn(name = "profissional_atribuido_id")
+    private Profissional profissionalAtribuido;
+
     @Enumerated(EnumType.STRING)
     private CategoriaServico categoria;
 
