@@ -3,6 +3,8 @@ package com.nahora.repositories;
 import com.nahora.model.Cliente;
 import com.nahora.model.Pedido;
 import com.nahora.model.enums.StatusPedido;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -14,4 +16,8 @@ public interface PedidoRepository extends
         PedidoRepositoryCustom {
 
     long countByClienteAndStatusIn(Cliente cliente, Collection<StatusPedido> statusList);
+
+    Page<Pedido> findByClienteId(Long clienteId, Pageable pageable);
+
+    Page<Pedido> findByClienteIdAndStatus(Long clienteId, StatusPedido status, Pageable pageable);
 }

@@ -302,6 +302,14 @@ public class PedidoService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public Page<PedidoResponse> listarMeusPedidos(Long clienteId, StatusPedido status, Pageable pageable) {
+        Page<Pedido> pedidos = status != null
+                ? pedidoRepository.findByClienteIdAndStatus(clienteId, status, pageable)
+                : pedidoRepository.findByClienteId(clienteId, pageable);
+        return pedidos.map(this::toResponseDTO);
+    }
+
     private PropostaResponseDTO mapToPropostaResponseDTO(Proposta proposta) {
         var prof = proposta.getProfissional();
 
