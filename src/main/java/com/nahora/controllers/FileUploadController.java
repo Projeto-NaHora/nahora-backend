@@ -30,7 +30,7 @@ public class FileUploadController {
     public ResponseEntity<UploadResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("tipo")
-            @Pattern(regexp = "RG_FRENTE|RG_VERSO|SELFIE", message = "tipo deve ser RG_FRENTE, RG_VERSO ou SELFIE")
+            @Pattern(regexp = "RG_FRENTE|RG_VERSO|SELFIE|PEDIDO", message = "tipo deve ser RG_FRENTE, RG_VERSO, SELFIE ou PEDIDO")
             String tipo
     ) {
         String url = storageService.uploadDocumento(file, tipo);
