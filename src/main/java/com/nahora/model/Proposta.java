@@ -30,7 +30,7 @@ public class Proposta {
     @ManyToOne(optional = false)
     @JoinColumn(name = "profissional_id")
     private Profissional profissional;
-
+  
     @Column(name = "valor_oferecido", nullable = false)
     private BigDecimal valorOferecido;
 
