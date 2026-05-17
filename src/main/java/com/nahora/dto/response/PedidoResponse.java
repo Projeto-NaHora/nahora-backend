@@ -26,5 +26,7 @@ public class PedidoResponse {
     private LocalDateTime dataDesejada;
     private StatusPedido status;
     private LocalDateTime criadoEm;
+    private Long profissionalAtribuidoId;
+    private String profissionalAtribuidoNome;
 
 }

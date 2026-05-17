@@ -13,6 +13,7 @@ import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
 import com.nahora.model.Profissional;
 import com.nahora.model.Proposta;
+import com.nahora.model.Usuario;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.model.enums.StatusProposta;
 import com.nahora.repositories.ClienteRepository;
@@ -160,7 +161,28 @@ public class PedidoService {
             }
             response.setEndereco(enderecoResponse);
         }
+        if (pedido.getProfissionalAtribuido() != null) {
+            response.setProfissionalAtribuidoId(pedido.getProfissionalAtribuido().getId());
+            response.setProfissionalAtribuidoNome(pedido.getProfissionalAtribuido().getNome());
+        }
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public PedidoResponse buscarPedidoPorId(Long pedidoId, Usuario usuario) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        boolean isCliente = usuario instanceof Cliente && pedido.getCliente().getId().equals(usuario.getId());
+        boolean isProfissionalAtribuido = usuario instanceof Profissional
+                && pedido.getProfissionalAtribuido() != null
+                && pedido.getProfissionalAtribuido().getId().equals(usuario.getId());
+
+        if (!isCliente && !isProfissionalAtribuido) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado ao pedido");
+        }
+
+        return toResponseDTO(pedido);
     }
 
     private Profissional getProfissionalAutenticado() {
