@@ -56,8 +56,8 @@ public class PedidoController {
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
             @ApiResponse(responseCode = "403", description = "Usuário autenticado não é cliente")
     })
-    public ResponseEntity<Page<PedidoResponse>> listarMeusPedidos(
-            @RequestParam(required = false) StatusPedido status,
+        public ResponseEntity<Page<PedidoResponse>> listarMeusPedidos(
+            @RequestParam(required = false) List<StatusPedido> status,
             Pageable pageable,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
         if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
