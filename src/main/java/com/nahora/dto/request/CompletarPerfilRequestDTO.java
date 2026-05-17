@@ -17,14 +17,11 @@ public record CompletarPerfilRequestDTO(
         @Min(value = 0, message = "Os anos de experiência não podem ser negativos.")
         Integer anosExperiencia,
 
-        @NotNull(message = "O raio de atuação é obrigatório.")
         @Positive(message = "O raio de atuação deve ser maior que zero.")
         Double raioAtuacaoKm,
 
-        @NotNull(message = "A latitude é obrigatória.")
         Double latitude,
 
-        @NotNull(message = "A longitude é obrigatória.")
         Double longitude,
 
         @Size(max = 10, message = "Máximo de 10 fotos no portfólio.")

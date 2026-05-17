@@ -20,4 +20,6 @@ public interface PedidoRepository extends
     Page<Pedido> findByClienteId(Long clienteId, Pageable pageable);
 
     Page<Pedido> findByClienteIdAndStatus(Long clienteId, StatusPedido status, Pageable pageable);
+
+    Page<Pedido> findByClienteIdAndStatusIn(Long clienteId, Collection<StatusPedido> status, Pageable pageable);
 }
