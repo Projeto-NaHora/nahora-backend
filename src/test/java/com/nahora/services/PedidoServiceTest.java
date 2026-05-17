@@ -764,13 +764,13 @@ class PedidoServiceTest {
     @Test
     void listarMeusPedidos_ComFiltroStatus_DeveUsarQueryComStatus() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(pedidoRepository.findByClienteIdAndStatus(clienteId, StatusPedido.ABERTO, pageable))
+        when(pedidoRepository.findByClienteIdAndStatusIn(clienteId, List.of(StatusPedido.ABERTO), pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
-        var result = pedidoService.listarMeusPedidos(clienteId, StatusPedido.ABERTO, pageable);
+        var result = pedidoService.listarMeusPedidos(clienteId, List.of(StatusPedido.ABERTO), pageable);
 
         assertThat(result).isEmpty();
-        verify(pedidoRepository).findByClienteIdAndStatus(clienteId, StatusPedido.ABERTO, pageable);
+        verify(pedidoRepository).findByClienteIdAndStatusIn(clienteId, List.of(StatusPedido.ABERTO), pageable);
         verify(pedidoRepository, never()).findByClienteId(any(), any());
     }
 
