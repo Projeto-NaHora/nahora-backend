@@ -7,6 +7,7 @@ import com.nahora.dto.response.PedidoResumoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Pedido;
 import com.nahora.model.Usuario;
+import com.nahora.model.enums.StatusPedido;
 import com.nahora.services.PedidoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -45,6 +46,25 @@ public class PedidoController {
         }
         Pedido novoPedido = pedidoService.criarPedido(clienteAutenticado.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.toResponseDTO(novoPedido));
+    }
+
+    @GetMapping("/meus")
+    @PreAuthorize("hasRole('CLIENTE')")
+    @Operation(summary = "Lista os pedidos do cliente autenticado",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Usuário autenticado não é cliente")
+    })
+    public ResponseEntity<Page<PedidoResponse>> listarMeusPedidos(
+            @RequestParam(required = false) StatusPedido status,
+            Pageable pageable,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+        if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem acessar seus pedidos.");
+        }
+        Page<PedidoResponse> pedidos = pedidoService.listarMeusPedidos(clienteAutenticado.getId(), status, pageable);
+        return ResponseEntity.ok(pedidos);
     }
 
     @GetMapping("/disponiveis")

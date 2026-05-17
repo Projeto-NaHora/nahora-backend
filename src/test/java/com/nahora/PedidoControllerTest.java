@@ -353,4 +353,61 @@ class PedidoControllerTest {
         mockMvc.perform(post("/api/v1/pedidos/10/propostas/99/aceitar"))
                 .andExpect(status().isNotFound());
     }
+
+    // --- listarMeusPedidos ---
+
+    @Test
+    void listarMeusPedidos_SemFiltroStatus_DeveRetornar200ComPedidos() throws Exception {
+        PedidoResponse r1 = new PedidoResponse();
+        r1.setId(1L);
+        r1.setStatus(StatusPedido.ABERTO);
+
+        PedidoResponse r2 = new PedidoResponse();
+        r2.setId(2L);
+        r2.setStatus(StatusPedido.EM_ANDAMENTO);
+
+        Page<PedidoResponse> pageMock = new PageImpl<>(List.of(r1, r2), PageRequest.of(0, 10), 2);
+
+        when(pedidoService.listarMeusPedidos(eq(1L), isNull(), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos/meus")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[1].id").value(2))
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
+    void listarMeusPedidos_ComFiltroStatus_DeveRetornar200ComPedidosFiltrados() throws Exception {
+        PedidoResponse r = new PedidoResponse();
+        r.setId(3L);
+        r.setStatus(StatusPedido.ABERTO);
+
+        Page<PedidoResponse> pageMock = new PageImpl<>(List.of(r), PageRequest.of(0, 10), 1);
+
+        when(pedidoService.listarMeusPedidos(eq(1L), eq(StatusPedido.ABERTO), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos/meus")
+                        .param("status", "ABERTO"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(3))
+                .andExpect(jsonPath("$.content[0].status").value("ABERTO"));
+    }
+
+    @Test
+    void listarMeusPedidos_QuandoNaoHaPedidos_DeveRetornar200ComListaVazia() throws Exception {
+        Page<PedidoResponse> pageMock = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+
+        when(pedidoService.listarMeusPedidos(eq(1L), isNull(), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos/meus"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
 }
