@@ -746,6 +746,87 @@ class PedidoServiceTest {
                 });
     }
 
+    // --- listarMeusPedidos ---
+
+    @Test
+    void listarMeusPedidos_SemFiltroStatus_DeveUsarQuerySemStatus() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(pedidoRepository.findByClienteId(clienteId, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        var result = pedidoService.listarMeusPedidos(clienteId, null, pageable);
+
+        assertThat(result).isEmpty();
+        verify(pedidoRepository).findByClienteId(clienteId, pageable);
+        verify(pedidoRepository, never()).findByClienteIdAndStatus(any(), any(), any());
+    }
+
+    @Test
+    void listarMeusPedidos_ComFiltroStatus_DeveUsarQueryComStatus() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(pedidoRepository.findByClienteIdAndStatus(clienteId, StatusPedido.ABERTO, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        var result = pedidoService.listarMeusPedidos(clienteId, StatusPedido.ABERTO, pageable);
+
+        assertThat(result).isEmpty();
+        verify(pedidoRepository).findByClienteIdAndStatus(clienteId, StatusPedido.ABERTO, pageable);
+        verify(pedidoRepository, never()).findByClienteId(any(), any());
+    }
+
+    @Test
+    void listarMeusPedidos_DeveMapearPedidoParaResponseCorretamente() {
+        Pedido pedido = new Pedido();
+        pedido.setId(42L);
+        pedido.setStatus(StatusPedido.ABERTO);
+        pedido.setCategoria(CategoriaServico.ELETRICA);
+        pedido.setDescricao("Troca de tomada");
+        pedido.setUrgencia(Urgencia.NORMAL);
+        pedido.setOrcamentoEstimado(BigDecimal.valueOf(200.00));
+        pedido.setFotos(List.of());
+        pedido.setCliente(cliente);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(pedidoRepository.findByClienteId(clienteId, pageable))
+                .thenReturn(new PageImpl<>(List.of(pedido), pageable, 1));
+
+        var result = pedidoService.listarMeusPedidos(clienteId, null, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        var response = result.getContent().get(0);
+        assertThat(response.getId()).isEqualTo(42L);
+        assertThat(response.getStatus()).isEqualTo(StatusPedido.ABERTO);
+        assertThat(response.getCategoria()).isEqualTo(CategoriaServico.ELETRICA);
+        assertThat(response.getClienteId()).isEqualTo(clienteId);
+        assertThat(response.getClienteNome()).isEqualTo("João");
+    }
+
+    @Test
+    void listarMeusPedidos_ComMultiplosPedidos_DeveRetornarPaginaComTodos() {
+        Pedido p1 = new Pedido();
+        p1.setId(1L);
+        p1.setStatus(StatusPedido.ABERTO);
+        p1.setCliente(cliente);
+        p1.setFotos(List.of());
+
+        Pedido p2 = new Pedido();
+        p2.setId(2L);
+        p2.setStatus(StatusPedido.CONCLUIDO);
+        p2.setCliente(cliente);
+        p2.setFotos(List.of());
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(pedidoRepository.findByClienteId(clienteId, pageable))
+                .thenReturn(new PageImpl<>(List.of(p1, p2), pageable, 2));
+
+        var result = pedidoService.listarMeusPedidos(clienteId, null, pageable);
+
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
+        assertThat(result.getContent().get(1).getId()).isEqualTo(2L);
+    }
+
     @Test
     void listarPropostasAtivas_DeveRetornarApenasPendentesOrdenadas() {
         // Arrange

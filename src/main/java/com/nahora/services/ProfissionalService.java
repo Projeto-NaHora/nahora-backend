@@ -33,12 +33,21 @@ public class ProfissionalService {
         profissional.setCategoriasAtendidas(dto.categorias());
         profissional.setEspecialidades(dto.especialidades());
         profissional.setAnosExperiencia(dto.anosExperiencia());
-        profissional.setRaioAtuacao(dto.raioAtuacaoKm());
+        if (dto.raioAtuacaoKm() != null) {
+            profissional.setRaioAtuacao(dto.raioAtuacaoKm());
+        }
         profissional.setPortfolio(dto.urlsFotos());
 
-      
-        Point localizacao = geometryFactory.createPoint(new Coordinate(dto.longitude(), dto.latitude()));
-        profissional.setLocalizacao(localizacao);
+        Double latitude = dto.latitude();
+        Double longitude = dto.longitude();
+        if (latitude != null || longitude != null) {
+            if (latitude == null || longitude == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Latitude e longitude devem ser informadas juntas.");
+            }
+            Point localizacao = geometryFactory.createPoint(new Coordinate(longitude, latitude));
+            profissional.setLocalizacao(localizacao);
+        }
 
         profissional.setPerfilCompleto(true);
 

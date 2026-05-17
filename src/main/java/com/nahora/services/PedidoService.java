@@ -137,7 +137,7 @@ public class PedidoService {
         response.setId(pedido.getId());
         response.setCategoria(pedido.getCategoria());
         response.setDescricao(pedido.getDescricao());
-        response.setFotos(pedido.getFotos());
+        response.setFotos(List.copyOf(pedido.getFotos()));
         response.setUrgencia(pedido.getUrgencia());
         response.setOrcamentoEstimado(pedido.getOrcamentoEstimado());
         response.setDataDesejada(pedido.getDataDesejada());
@@ -190,9 +190,29 @@ public class PedidoService {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
         }
+
+        Object principal = authentication.getPrincipal();
+        if (principal == null || "anonymousUser".equals(principal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+
+        if (principal instanceof Profissional profissional) {
+            return profissional;
+        }
+
+        if (principal instanceof Usuario) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Apenas profissionais podem acessar este recurso");
+        }
+
         String email = authentication.getName();
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+
         return profissionalRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profissional não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Profissional não encontrado"));
     }
 
     public Page<PedidoResumoResponse> listarPedidosComFiltros(
@@ -202,10 +222,7 @@ public class PedidoService {
         Profissional profissional = getProfissionalAutenticado();
         Point localizacao = profissional.getLocalizacao();
         Double raioAtuacao = profissional.getRaioAtuacao();
-        if (localizacao == null || raioAtuacao == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Profissional não possui localização ou raio de atuação configurados");
-        }
+        boolean possuiLocalizacao = localizacao != null && raioAtuacao != null;
 
         Specification<Pedido> spec = Specification
                 .where(PedidoSpecifications.isAberto())
@@ -214,6 +231,9 @@ public class PedidoService {
 
         PedidoFiltroRequest.SortBy sortBy = filtro.getSortBy();
         if (sortBy == null) {
+            sortBy = PedidoFiltroRequest.SortBy.MAIS_RECENTES;
+        }
+        if (!possuiLocalizacao && sortBy == PedidoFiltroRequest.SortBy.MAIS_PROXIMOS) {
             sortBy = PedidoFiltroRequest.SortBy.MAIS_RECENTES;
         }
 
@@ -231,6 +251,14 @@ public class PedidoService {
                 pageable.getPageSize(),
                 sort
         );
+
+        if (!possuiLocalizacao) {
+            Page<Pedido> pedidoPage = pedidoRepository.findAll(spec, pageableComSort);
+            return pedidoPage.map(pedido -> {
+                int numPropostas = propostaRepository.countByPedidoId(pedido.getId());
+                return PedidoResumoResponse.fromPedido(pedido, null, numPropostas);
+            });
+        }
 
         Page<PedidoDistanceRequest> dtoPage = pedidoRepository.findWithFiltersAndDistance(
                 localizacao, raioAtuacao, spec, pageableComSort
@@ -322,6 +350,14 @@ public class PedidoService {
                 propostaEscolhida.getProfissional().getId(),
                 propostaEscolhida.getProfissional().getNome()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PedidoResponse> listarMeusPedidos(Long clienteId, List<StatusPedido> status, Pageable pageable) {
+        Page<Pedido> pedidos = status != null && !status.isEmpty()
+                ? pedidoRepository.findByClienteIdAndStatusIn(clienteId, status, pageable)
+                : pedidoRepository.findByClienteId(clienteId, pageable);
+        return pedidos.map(this::toResponseDTO);
     }
 
     private PropostaResponseDTO mapToPropostaResponseDTO(Proposta proposta) {
