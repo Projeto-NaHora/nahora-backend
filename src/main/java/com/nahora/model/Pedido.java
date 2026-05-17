@@ -60,4 +60,9 @@ public class Pedido {
 
     @Column(name = "data_desejada")
     private LocalDateTime dataDesejada;
+
+    @Transient
+    public Boolean getUrgente() {
+        return this.urgencia == Urgencia.URGENTE;
+    }
 }

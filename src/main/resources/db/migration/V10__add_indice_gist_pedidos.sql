@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_pedido_coordenadas ON pedido USING GIST (coordenadas);

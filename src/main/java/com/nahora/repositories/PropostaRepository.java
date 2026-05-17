@@ -18,4 +18,6 @@ public interface PropostaRepository extends JpaRepository<Proposta, Long> {
     // Métodos vindos da develop:
     Optional<Proposta> findByPedidoIdAndProfissionalIdAndStatus(Long pedidoId, Long profissionalId, StatusProposta status);
     boolean existsByPedidoIdAndStatus(Long pedidoId, StatusProposta status);
+
+    int countByPedidoId(Long pedidoId);
 }
