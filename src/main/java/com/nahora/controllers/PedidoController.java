@@ -48,6 +48,19 @@ public class PedidoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.toResponseDTO(novoPedido));
     }
 
+    @GetMapping("/{pedidoId}")
+    @Operation(summary = "Retorna os detalhes de um pedido (Tela C04)", security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Detalhes retornados com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado ao pedido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
+    })
+    public ResponseEntity<PedidoResponse> buscarPedido(
+            @PathVariable Long pedidoId,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+        return ResponseEntity.ok(pedidoService.buscarPedidoPorId(pedidoId, usuarioAutenticado));
+    }
+
     @GetMapping("/meus")
     @PreAuthorize("hasRole('CLIENTE')")
     @Operation(summary = "Lista os pedidos do cliente autenticado",
@@ -56,7 +69,7 @@ public class PedidoController {
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
             @ApiResponse(responseCode = "403", description = "Usuário autenticado não é cliente")
     })
-        public ResponseEntity<Page<PedidoResponse>> listarMeusPedidos(
+    public ResponseEntity<Page<PedidoResponse>> listarMeusPedidos(
             @RequestParam(required = false) List<StatusPedido> status,
             Pageable pageable,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {

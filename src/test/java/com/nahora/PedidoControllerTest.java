@@ -388,7 +388,7 @@ class PedidoControllerTest {
 
         Page<PedidoResponse> pageMock = new PageImpl<>(List.of(r), PageRequest.of(0, 10), 1);
 
-        when(pedidoService.listarMeusPedidos(eq(1L), eq(StatusPedido.ABERTO), any(Pageable.class)))
+        when(pedidoService.listarMeusPedidos(eq(1L), eq(List.of(StatusPedido.ABERTO)), any(Pageable.class)))
                 .thenReturn(pageMock);
 
         mockMvc.perform(get("/api/v1/pedidos/meus")
