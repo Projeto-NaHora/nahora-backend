@@ -24,8 +24,9 @@ public class StorageConfig {
 
     @Bean
     public S3Client s3Client() {
+        String effectiveEndpoint = (endpoint == null || endpoint.isBlank()) ? "http://localhost:9000" : endpoint;
         return S3Client.builder()
-                .endpointOverride(URI.create(endpoint))
+                .endpointOverride(URI.create(effectiveEndpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))
                 // R2 não usa região real, mas o SDK exige um valor

@@ -22,8 +22,7 @@ spring:
 
   jpa:
     hibernate:
-      database-platform: org.hibernate.spatial.dialect.postgis.PostgisDialect # ◄ ADICIONE ESTA LINHA
-      ddl-auto: none    # Flyway gerencia todo o DDL
+      ddl-auto: none
     open-in-view: false
     show-sql: false
 
@@ -99,6 +98,7 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
 
 logging:
   level:
