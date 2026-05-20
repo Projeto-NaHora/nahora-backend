@@ -2,7 +2,7 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
-RUN mvn dependency:go-offline -q
+RUN mvn dependency:resolve dependency:resolve-plugins -DexcludeScope=test -q
 COPY src ./src
 RUN mvn package -DskipTests -q
 
