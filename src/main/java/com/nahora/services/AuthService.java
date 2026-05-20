@@ -40,6 +40,7 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final SmsService smsService;
 
     public void sendOtp(String telefone) {
         String lockKey = "otp_lock:" + telefone;
@@ -53,8 +54,7 @@ public class AuthService {
         redisTemplate.opsForValue().set("otp:" + telefone, code, 5, TimeUnit.MINUTES);
         redisTemplate.opsForValue().set("otp_attempts:" + telefone, "0", 5, TimeUnit.MINUTES);
 
-        // Simulação de envio via SMS
-        log.info("Mock SMS -> OTP para {}: {}", telefone, code);
+        smsService.sendSms(telefone, "Seu código NaHora: " + code + ". Válido por 5 minutos.");
     }
 
     public void verifyOtp(String telefone, String codigo) {
@@ -118,7 +118,11 @@ public class AuthService {
         redisTemplate.opsForValue().set("pwd_reset_otp:" + identificador, code, 5, TimeUnit.MINUTES);
         redisTemplate.opsForValue().set("pwd_reset_attempts:" + identificador, "0", 5, TimeUnit.MINUTES);
 
-        log.info("Mock SMS/Email -> OTP de recuperação para {}: {}", identificador, code);
+        if (!identificador.contains("@")) {
+            smsService.sendSms(identificador, "Código de recuperação NaHora: " + code + ". Válido por 5 minutos.");
+        } else {
+            log.info("OTP de recuperação gerado para {} (envio por e-mail não implementado)", identificador);
+        }
     }
 
     @Transactional
