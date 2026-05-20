@@ -83,6 +83,7 @@ class PedidoServiceTest {
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn(email);
         when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
         SecurityContext securityContext = mock(SecurityContext.class);
         when(securityContext.getAuthentication()).thenReturn(authentication);
         securityHolder.when(SecurityContextHolder::getContext).thenReturn(securityContext);

@@ -253,11 +253,8 @@ public class PedidoService {
         );
 
         if (!possuiLocalizacao) {
-            Page<Pedido> pedidoPage = pedidoRepository.findAll(spec, pageableComSort);
-            return pedidoPage.map(pedido -> {
-                int numPropostas = propostaRepository.countByPedidoId(pedido.getId());
-                return PedidoResumoResponse.fromPedido(pedido, null, numPropostas);
-            });
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profissional sem localização ou raio de atuação configurados");
         }
 
         Page<PedidoDistanceRequest> dtoPage = pedidoRepository.findWithFiltersAndDistance(
