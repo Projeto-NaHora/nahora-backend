@@ -28,6 +28,10 @@ public class Pedido {
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
+    @ManyToOne
+    @JoinColumn(name = "profissional_atribuido_id")
+    private Profissional profissionalAtribuido;
+
     @Enumerated(EnumType.STRING)
     private CategoriaServico categoria;
 
@@ -56,4 +60,9 @@ public class Pedido {
 
     @Column(name = "data_desejada")
     private LocalDateTime dataDesejada;
+
+    @Transient
+    public Boolean getUrgente() {
+        return this.urgencia == Urgencia.URGENTE;
+    }
 }

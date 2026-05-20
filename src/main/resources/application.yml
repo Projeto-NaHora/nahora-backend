@@ -5,6 +5,11 @@ spring:
   profiles:
     active: dev
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+
   threads:
     virtual:
       enabled: true   # Virtual Threads (Project Loom)
@@ -17,7 +22,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none    # Flyway gerencia todo o DDL
+      ddl-auto: none
     open-in-view: false
     show-sql: false
 
@@ -85,14 +90,15 @@ spring:
       on-profile: prod
 
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:${DB_URL}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD}}
 
   data:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
 
 logging:
   level:
