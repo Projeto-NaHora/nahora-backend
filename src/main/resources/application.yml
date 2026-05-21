@@ -58,6 +58,11 @@ storage:
   secret-key: ${STORAGE_SECRET_KEY:dev12345}
   endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
 
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID:}
+  auth-token: ${TWILIO_AUTH_TOKEN:}
+  phone-number: ${TWILIO_PHONE_NUMBER:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
