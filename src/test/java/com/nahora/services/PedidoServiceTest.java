@@ -874,7 +874,7 @@ class PedidoServiceTest {
         coordLonge.setSRID(4326);
         profissionalLonge.setLocalizacao(coordLonge);
 
-        when(profissionalRepository.findByCategoriaAndAtivoTrueAndPerfilCompletoTrue(CategoriaServico.ELETRICA))
+        when(profissionalRepository.findByCategoriasAtendidasAndAtivoTrueAndPerfilCompletoTrue(CategoriaServico.ELETRICA))
                 .thenReturn(List.of(profissionalPerto, profissionalLonge));
 
         pedidoService.notificarProfissionaisDaCategoria(pedido);

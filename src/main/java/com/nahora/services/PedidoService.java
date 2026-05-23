@@ -407,7 +407,7 @@ public class PedidoService {
         double raioMaximoKm = 10.0;
 
         List<Profissional> profissionaisElegiveis = profissionalRepository
-                .findByCategoriaAndAtivoTrueAndPerfilCompletoTrue(pedido.getCategoria());
+                .findByCategoriasAtendidasAndAtivoTrueAndPerfilCompletoTrue(pedido.getCategoria());
 
         for (Profissional profissional : profissionaisElegiveis) {
             if (profissional.getLocalizacao() != null) {

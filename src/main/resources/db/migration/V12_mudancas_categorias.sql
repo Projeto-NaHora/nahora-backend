@@ -1,0 +1,7 @@
+ALTER TABLE pedido DROP CONSTRAINT IF EXISTS fk_pedido_categoria;
+
+ALTER TABLE pedido DROP COLUMN IF EXISTS categoria_id;
+
+ALTER TABLE pedido ADD COLUMN categoria VARCHAR(50) NOT NULL;
+
+DROP TABLE IF EXISTS categoria_servico;
