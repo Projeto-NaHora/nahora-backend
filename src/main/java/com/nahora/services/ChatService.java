@@ -21,12 +21,15 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.http.HttpStatus;
 
+
 import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
+
+    private final PushNotificationService pushNotificationService;
 
     private final ConversaRepository conversaRepository;
     private final MensagemRepository mensagemRepository;
@@ -106,7 +109,7 @@ public class ChatService {
                 });
     }
 
-    // Disputa: Transiciona de SOMENTE_LEITURA para EM_DESPUTA, reabilitando o envio de mensagens.
+    // Disputa: Transiciona de SOMENTE_LEITURA para EM_DISPUTA, reabilitando o envio de mensagens.
     @org.springframework.transaction.annotation.Transactional
     public void reabrirCanalParaDisputa(Long pedidoId) {
         log.info("[CHAT] Reabrindo canal para disputa no pedido {}", pedidoId);
@@ -116,7 +119,7 @@ public class ChatService {
                 .forEach(conversa -> {
                     conversa.setStatus(StatusConversa.EM_DISPUTA);
                     conversaRepository.save(conversa);
-                    log.info("[CHAT] Conversa {} colocada EM_DESPUTA", conversa.getId());
+                    log.info("[CHAT] Conversa {} colocada EM_DISPUTA", conversa.getId());
                 });
     }
 
@@ -127,8 +130,7 @@ public class ChatService {
     public Page<ConversaResponseDTO> listarConversas(Long usuarioId, List<StatusConversa> filtro, Pageable pageable) {
         return Page.empty();
     }
-
-
+  
 
     public void enviarMensagem(Long conversaId, Long remetenteId, MensagemRequestDTO dto) {
 
@@ -153,7 +155,6 @@ public class ChatService {
         Usuario remetenteRef = remetenteId.equals(clienteId) ? 
                        conversa.getPedido().getCliente() : 
                        conversa.getProposta().getProfissional(); 
-        remetenteRef.setId(remetenteId);
         mensagem.setRemetente(remetenteRef);
         mensagem.setConteudo(dto.conteudo());
         mensagem.setAnexoUrl(dto.anexoUrl());
@@ -192,7 +193,7 @@ public class ChatService {
                 mensagem.getId(),
                 conversaId,
                 remetenteId,
-                "Nome do Remetente", // Pode buscar o nome se necessário
+                remetenteRef.getNome(),
                 mensagem.getConteudo(),
                 mensagem.getAnexoUrl(),
                 mensagem.getStatus(),
@@ -202,8 +203,15 @@ public class ChatService {
         
         messagingTemplate.convertAndSend("/topic/conversa/" + conversaId, responseDTO);
 
-        // Notificação Push (Mock)
-        // pushNotificationService.enviarNotificacaoOffline(destinatarioId, "Nova mensagem de " + nomeRemetente);
+        Usuario destinatarioRef = remetenteId.equals(clienteId) ? 
+                                  conversa.getProposta().getProfissional() : 
+                                  conversa.getPedido().getCliente();
+
+        String tokenDestinatario = destinatarioRef.getTokenFcm();
+        String tituloPush = "Nova mensagem de " + remetenteRef.getNome();
+
+        pushNotificationService.enviarNotificacao(tokenDestinatario, tituloPush, dto.conteudo());
+
         log.info("Mensagem {} enviada no canal /topic/conversa/{}", mensagem.getId(), conversaId);
     }
 }
