@@ -70,6 +70,7 @@ class BuscaServiceTest {
         profissional.setTotalServicosExecutados(42);
         profissional.setEspecialidades(List.of("Instalação", "Reparos"));
         profissional.setBio("Eletricista experiente.");
+        profissional.setDescricaoEspecialidades("Especialista em instalações residenciais e comerciais.");
         profissional.setPortfolio(List.of("foto1.jpg", "foto2.jpg", "foto3.jpg", "foto4.jpg"));
         profissional.setPerfilCompleto(true);
 
@@ -200,6 +201,7 @@ class BuscaServiceTest {
         assertEquals(42, dto.totalServicos());
         assertEquals("Eletricista experiente.", dto.sobreDescricao());
         assertEquals(List.of("Instalação", "Reparos"), dto.especialidadesTags());
+        assertEquals("Especialista em instalações residenciais e comerciais.", dto.especialidadesDescricao());
         assertEquals(3, dto.portfolioFotos().size());
         assertEquals(4, dto.totalPortfolioFotos());
     }

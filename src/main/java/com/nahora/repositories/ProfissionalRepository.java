@@ -19,8 +19,8 @@ public interface ProfissionalRepository extends JpaRepository<Profissional, Long
     Optional<Profissional> findByEmail(String email);
 
     @Query("""
-        SELECT p FROM Profissional p
-        JOIN p.categoriasAtendidas c
+        SELECT DISTINCT p FROM Profissional p
+        JOIN FETCH p.categoriasAtendidas c
         WHERE c = :categoria
           AND p.perfilCompleto = true
           AND p.ativo = true
@@ -34,7 +34,7 @@ public interface ProfissionalRepository extends JpaRepository<Profissional, Long
      */
     @Query("""
         SELECT DISTINCT p FROM Profissional p
-        LEFT JOIN p.categoriasAtendidas c
+        LEFT JOIN FETCH p.categoriasAtendidas c
         WHERE p.perfilCompleto = true
           AND p.ativo = true
           AND (
