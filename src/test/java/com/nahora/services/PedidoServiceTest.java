@@ -1,14 +1,11 @@
 package com.nahora.services;
 
+import com.nahora.dto.request.PedidoCardDTO;
 import com.nahora.dto.request.EnderecoRequest;
 import com.nahora.dto.request.PedidoDistanceRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
 import com.nahora.dto.response.PedidoResumoResponse;
-import com.nahora.model.Cliente;
-import com.nahora.model.Endereco;
-import com.nahora.model.Pedido;
-import com.nahora.model.Profissional;
 import com.nahora.model.*;
 import com.nahora.model.enums.CategoriaServico;
 import com.nahora.model.enums.StatusPedido;
@@ -41,8 +38,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,6 +64,9 @@ class PedidoServiceTest {
     @Mock
     private PropostaRepository propostaRepository;
 
+    @Mock
+    private PushNotificationService pushNotificationService;
+
     @InjectMocks
     private PedidoService pedidoService;
 
@@ -75,7 +75,7 @@ class PedidoServiceTest {
     private Cliente cliente;
     private PedidoRequest request;
     private Endereco enderecoSalvo;
-    private final Long clienteId = 1L; // ID fixo para os testes
+    private final Long clienteId = 1L;
     private final Long pedidoId = 1L;
     private final Long pedidoId2 = 2L;
 
@@ -135,6 +135,7 @@ class PedidoServiceTest {
 
         Pedido pedidoSalvo = new Pedido();
         pedidoSalvo.setId(1L);
+        pedidoSalvo.setCategoria(CategoriaServico.ELETRICA);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
         Pedido resultado = pedidoService.criarPedido(clienteId, request);
@@ -142,9 +143,9 @@ class PedidoServiceTest {
         assertThat(resultado).isNotNull();
         ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(captor.capture());
-        Pedido pedidoCapturado = captor.getValue();
+        Pedido pedidoCaptured = captor.getValue();
 
-        Endereco enderecoPedido = pedidoCapturado.getEndereco();
+        Endereco enderecoPedido = pedidoCaptured.getEndereco();
         assertThat(enderecoPedido.getLogradouro()).isEqualTo("Rua Nova");
         assertThat(enderecoPedido.getCoordenadas()).isNotNull();
         assertThat(enderecoPedido.getCoordenadas().getX()).isEqualTo(-43.1729);
@@ -162,6 +163,7 @@ class PedidoServiceTest {
 
         Pedido pedidoSalvo = new Pedido();
         pedidoSalvo.setId(1L);
+        pedidoSalvo.setCategoria(CategoriaServico.ELETRICA);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
         pedidoService.criarPedido(clienteId, request);
@@ -253,6 +255,7 @@ class PedidoServiceTest {
         request.setEndereco(enderecoNovo);
 
         Pedido pedidoSalvo = new Pedido();
+        pedidoSalvo.setCategoria(CategoriaServico.ELETRICA);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
         pedidoService.criarPedido(clienteId, request);
@@ -278,6 +281,7 @@ class PedidoServiceTest {
         request.setEndereco(enderecoNovo);
 
         Pedido pedidoSalvo = new Pedido();
+        pedidoSalvo.setCategoria(CategoriaServico.ELETRICA);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
         pedidoService.criarPedido(clienteId, request);
@@ -303,6 +307,7 @@ class PedidoServiceTest {
         request.setFotos(List.of("foto1", "foto2", "foto3"));
 
         Pedido pedidoSalvo = new Pedido();
+        pedidoSalvo.setCategoria(CategoriaServico.ELETRICA);
         when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedidoSalvo);
 
         pedidoService.criarPedido(clienteId, request);
@@ -416,11 +421,11 @@ class PedidoServiceTest {
 
             Point ponto = geometryFactory.createPoint(new Coordinate(-46.6333, -23.5505));
             ponto.setSRID(4326);
-            Profissional profissional = new Profissional();
-            profissional.setEmail(email);
-            profissional.setLocalizacao(ponto);
-            profissional.setRaioAtuacao(10.0);
-            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profissional));
+            Profissional profesional = new Profissional();
+            profesional.setEmail(email);
+            profesional.setLocalizacao(ponto);
+            profesional.setRaioAtuacao(10.0);
+            when(profissionalRepository.findByEmail(email)).thenReturn(Optional.of(profesional));
 
             PedidoFiltroRequest filtro = new PedidoFiltroRequest();
             filtro.setSortBy(PedidoFiltroRequest.SortBy.MAIS_PROXIMOS);
@@ -630,11 +635,10 @@ class PedidoServiceTest {
                         assertThat(rse.getReason()).contains("Profissional não encontrado");
                     });
         }
-    } // <--- CHAVE DE FECHAMENTO ADICIONADA AQUI
+    }
 
-    @Test // <--- ANOTAÇÃO ADICIONADA AQUI
+    @Test
     void aceitarProposta_ComDadosValidos_DeveAtualizarStatusEDispararMocks() {
-        // Arrange
         Pedido pedido = new Pedido();
         pedido.setId(10L);
         pedido.setCliente(cliente);
@@ -663,10 +667,8 @@ class PedidoServiceTest {
         when(propostaRepository.findById(50L)).thenReturn(Optional.of(propostaEscolhida));
         when(propostaRepository.findByPedidoId(10L)).thenReturn(List.of(propostaEscolhida, propostaRecusada));
 
-        // Act
         var resposta = pedidoService.aceitarProposta(10L, 50L, clienteId);
 
-        // Assert
         assertThat(resposta).isNotNull();
         assertThat(pedido.getStatus()).isEqualTo(StatusPedido.EM_ANDAMENTO);
         assertThat(pedido.getProfissionalAtribuido()).isEqualTo(profVencedor);
@@ -678,7 +680,6 @@ class PedidoServiceTest {
 
     @Test
     void aceitarProposta_UsuarioNaoForDonoDoPedido_DeveLancar403() {
-        // Arrange
         Pedido pedido = new Pedido();
         pedido.setId(10L);
         Cliente outroCliente = new Cliente();
@@ -687,7 +688,6 @@ class PedidoServiceTest {
 
         when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
 
-        // Act & Assert
         assertThatThrownBy(() -> pedidoService.aceitarProposta(10L, 50L, clienteId))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
@@ -701,15 +701,13 @@ class PedidoServiceTest {
 
     @Test
     void aceitarProposta_PedidoNaoEstaAberto_DeveLancar422() {
-        // Arrange
         Pedido pedido = new Pedido();
         pedido.setId(10L);
         pedido.setCliente(cliente);
-        pedido.setStatus(StatusPedido.EM_ANDAMENTO); // Não está ABERTO
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO);
 
         when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
 
-        // Act & Assert
         assertThatThrownBy(() -> pedidoService.aceitarProposta(10L, 50L, clienteId))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
@@ -721,7 +719,6 @@ class PedidoServiceTest {
 
     @Test
     void aceitarProposta_PropostaNaoPertenceAoPedido_DeveLancar404() {
-        // Arrange
         Pedido pedido = new Pedido();
         pedido.setId(10L);
         pedido.setCliente(cliente);
@@ -737,7 +734,6 @@ class PedidoServiceTest {
         when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
         when(propostaRepository.findById(50L)).thenReturn(Optional.of(propostaIncompativel));
 
-        // Act & Assert
         assertThatThrownBy(() -> pedidoService.aceitarProposta(10L, 50L, clienteId))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> {
@@ -746,8 +742,6 @@ class PedidoServiceTest {
                     assertThat(rse.getReason()).contains("não pertence a este pedido");
                 });
     }
-
-    // --- listarMeusPedidos ---
 
     @Test
     void listarMeusPedidos_SemFiltroStatus_DeveUsarQuerySemStatus() {
@@ -830,7 +824,6 @@ class PedidoServiceTest {
 
     @Test
     void listarPropostasAtivas_DeveRetornarApenasPendentesOrdenadas() {
-        // Arrange
         Pedido pedido = new Pedido();
         pedido.setId(10L);
         pedido.setCliente(cliente);
@@ -844,18 +837,127 @@ class PedidoServiceTest {
         Profissional p2 = new Profissional();
         p2.setNotaMedia(5.0);
         Proposta prop2 = new Proposta();
-        prop2.setValorOferecido(BigDecimal.valueOf(100.00)); // Mais barata e maior nota
+        prop2.setValorOferecido(BigDecimal.valueOf(100.00));
         prop2.setProfissional(p2);
 
         when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
         when(propostaRepository.findByPedidoIdAndStatus(10L, StatusProposta.ATIVA))
                 .thenReturn(new ArrayList<>(List.of(prop1, prop2)));
 
-        // Act
         var resultadoPreco = pedidoService.listarPropostasAtivas(10L, clienteId, "preco");
 
-        // Assert
         assertThat(resultadoPreco).hasSize(2);
         assertThat(resultadoPreco.get(0).valorProposto()).isEqualTo(BigDecimal.valueOf(100.00)); // Menor preço primeiro
+    }
+
+    @Test
+    void notificarProfissionaisDaCategoria_DeveNotificarApenasProfissionaisDentroDoRaioDe10Km() {
+        Pedido pedido = new Pedido();
+        pedido.setCategoria(CategoriaServico.ELETRICA);
+        Endereco endPedido = new Endereco();
+        Point coordPedido = geometryFactory.createPoint(new Coordinate(-46.633308, -23.550520));
+        coordPedido.setSRID(4326);
+        endPedido.setCoordenadas(coordPedido);
+        pedido.setEndereco(endPedido);
+
+        Profissional profissionalPerto = new Profissional();
+        profissionalPerto.setId(10L);
+        profissionalPerto.setNome("Jorge Eletricista");
+        Point coordPerto = geometryFactory.createPoint(new Coordinate(-46.638000, -23.559000));
+        coordPerto.setSRID(4326);
+        profissionalPerto.setLocalizacao(coordPerto);
+
+        Profissional profissionalLonge = new Profissional();
+        profissionalLonge.setId(11L);
+        profissionalLonge.setNome("Marcos Eletricista");
+        Point coordLonge = geometryFactory.createPoint(new Coordinate(-46.400000, -23.400000));
+        coordLonge.setSRID(4326);
+        profissionalLonge.setLocalizacao(coordLonge);
+
+        when(profissionalRepository.findByCategoriaAndAtivoTrueAndPerfilCompletoTrue(CategoriaServico.ELETRICA))
+                .thenReturn(List.of(profissionalPerto, profissionalLonge));
+
+        pedidoService.notificarProfissionaisDaCategoria(pedido);
+
+        verify(pushNotificationService, times(1)).enviarNotificacaoNovoPedido(profissionalPerto, pedido);
+        verify(pushNotificationService, never()).enviarNotificacaoNovoPedido(profissionalLonge, pedido);
+    }
+
+    @Test
+    void listarPedidosDoCliente_SemFiltroStatus_DeveChamarFindByClienteIdEMapearCards() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Pedido pedido = new Pedido();
+        pedido.setId(100L);
+        pedido.setCategoria(CategoriaServico.ELETRICA);
+        pedido.setStatus(StatusPedido.ABERTO);
+        pedido.setDescricao("Chuveiro queimou totalmente e preciso de reparos urgentes na fiação.");
+        pedido.setEndereco(enderecoSalvo);
+        pedido.setDataDesejada(LocalDateTime.of(2026, 5, 20, 14, 0));
+
+        when(pedidoRepository.findByClienteId(clienteId, pageable))
+                .thenReturn(new PageImpl<>(List.of(pedido), pageable, 1));
+
+        Page<PedidoCardDTO> resultado = pedidoService.listarPedidosDoCliente(clienteId, null, pageable);
+
+        assertThat(resultado).isNotEmpty();
+        PedidoCardDTO card = resultado.getContent().get(0);
+        assertThat(card.getId()).isEqualTo(100L);
+        assertThat(card.getTitulo()).isEqualTo("Elétrica");
+        assertThat(card.getStatus()).isEqualTo(StatusPedido.ABERTO);
+        assertThat(card.getData()).isEqualTo("20/05/2026");
+        assertThat(card.getPeriodo()).isEqualTo("Tarde");
+        assertThat(card.getEndereco()).contains("Rua Salva, 10");
+        assertThat(card.getProfissionalNome()).isNull();
+
+        verify(pedidoRepository).findByClienteId(clienteId, pageable);
+        verify(pedidoRepository, never()).findByClienteIdAndStatus(anyLong(), any(), any());
+    }
+
+    @Test
+    void listarPedidosDoCliente_QuandoHorarioForMeiaNoite_DeveRetornarPeriodoACombinar() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Pedido pedido = new Pedido();
+        pedido.setCategoria(CategoriaServico.PINTURA);
+        pedido.setStatus(StatusPedido.ABERTO);
+        pedido.setDataDesejada(LocalDateTime.of(2026, 5, 20, 0, 0));
+
+        when(pedidoRepository.findByClienteId(clienteId, pageable))
+                .thenReturn(new PageImpl<>(List.of(pedido), pageable, 1));
+
+        Page<PedidoCardDTO> resultado = pedidoService.listarPedidosDoCliente(clienteId, null, pageable);
+
+        assertThat(resultado).isNotEmpty();
+        PedidoCardDTO card = resultado.getContent().get(0);
+        assertThat(card.getPeriodo()).isEqualTo("A combinar");
+    }
+
+    @Test
+    void listarPedidosDoCliente_ComFiltroStatus_DeveChamarFindByClienteIdAndStatusEMapearCamposDeSeguranca() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Profissional prestador = new Profissional();
+        prestador.setNome("Fernando Pintor");
+
+        Pedido pedido = new Pedido();
+        pedido.setId(101L);
+        pedido.setCategoria(CategoriaServico.PINTURA);
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO);
+        pedido.setDescricao("Pintura de duas salas comerciais.");
+        pedido.setProfissionalAtribuido(prestador);
+        pedido.setEndereco(enderecoSalvo);
+
+        when(pedidoRepository.findByClienteIdAndStatus(clienteId, StatusPedido.EM_ANDAMENTO, pageable))
+                .thenReturn(new PageImpl<>(List.of(pedido), pageable, 1));
+
+        Page<PedidoCardDTO> resultado = pedidoService.listarPedidosDoCliente(clienteId, StatusPedido.EM_ANDAMENTO, pageable);
+
+        assertThat(resultado).isNotEmpty();
+        PedidoCardDTO card = resultado.getContent().get(0);
+        assertThat(card.getId()).isEqualTo(101L);
+        assertThat(card.getStatus()).isEqualTo(StatusPedido.EM_ANDAMENTO);
+        assertThat(card.getProfissionalNome()).isEqualTo("Fernando Pintor");
+        assertThat(card.getEndereco()).isNull();
+
+        verify(pedidoRepository).findByClienteIdAndStatus(clienteId, StatusPedido.EM_ANDAMENTO, pageable);
+        verify(pedidoRepository, never()).findByClienteId(anyLong(), any());
     }
 }
