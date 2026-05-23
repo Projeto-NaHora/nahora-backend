@@ -19,10 +19,22 @@ public class TwilioSmsService implements SmsService {
     @Override
     public void sendSms(String to, String body) {
         Message message = Message.creator(
-                new PhoneNumber(to),
+                new PhoneNumber(toE164Brazil(to)),
                 new PhoneNumber(phoneNumber),
                 body
         ).create();
         log.info("SMS enviado via Twilio para {} — SID: {}", to, message.getSid());
+    }
+
+    // Twilio requires E.164; normalize Brazilian numbers that arrive without country code
+    private String toE164Brazil(String numero) {
+        if (numero.startsWith("+")) {
+            return numero;
+        }
+        String digits = numero.replaceAll("[^0-9]", "");
+        if (digits.length() == 13 && digits.startsWith("55")) {
+            return "+" + digits;
+        }
+        return "+55" + digits;
     }
 }
