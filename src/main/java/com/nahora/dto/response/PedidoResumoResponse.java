@@ -27,7 +27,7 @@ public record PedidoResumoResponse(
             CategoriaServico.PEDREIRO, new ValorRange(120.0, 400.0),
             CategoriaServico.ENCANAMENTO, new ValorRange(90.0, 300.0),
             CategoriaServico.PINTURA, new ValorRange(100.0, 350.0),
-            CategoriaServico.AR_CONDICIONADO, new ValorRange(150.0, 600.0)
+            CategoriaServico.MARCENARIA, new ValorRange(120.0, 600.0)
     );
 
     public static PedidoResumoResponse fromPedido(Pedido pedido, Double distanciaKm, Integer numPropostas) {
