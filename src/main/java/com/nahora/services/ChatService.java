@@ -123,14 +123,96 @@ public class ChatService {
                 });
     }
 
+    // Histórico de Mensagens: Retorna mensagens paginadas e ordenadas por data ASC.
+    // Filtra ocultando as que foram bloqueadas pela IA.
+    // Regra: Ao buscar o histórico, atualiza as mensagens recebidas pelo usuário de ENTREGUE para LIDA.
+    @org.springframework.transaction.annotation.Transactional // 🌟 ADICIONADO: Garante que o update do status funcione no banco
     public Page<MensagemResponseDTO> buscarHistorico(Long conversaId, Long usuarioId, Pageable pageable) {
-        return Page.empty();
+        log.info("[CHAT] Buscando histórico para a conversa {} solicitada pelo usuário {}", conversaId, usuarioId);
+
+        // Valida se a conversa existe e se o usuário faz parte dela
+        var conversa = conversaRepository.findById(conversaId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversa não encontrada")); // Corrigido digitação "encotrada"
+
+        boolean ehCliente = conversa.getPedido().getCliente().getId().equals(usuarioId);
+        boolean ehProfissional = conversa.getProposta().getProfissional().getId().equals(usuarioId);
+
+        if(!ehCliente && !ehProfissional){
+            throw new org.springframework.security.access.AccessDeniedException("Acesso negado: Você não participa desta conversa.");
+        }
+
+        // Busca as mensagens paginadas (A query do repository já ordena por criadoEm Asc)
+        Page<com.nahora.model.Mensagem> paginaMensagens = mensagemRepository.findByConversaIdOrderByCriadoEmAsc(conversaId, pageable);
+
+        // Atualiza o status das mensagens que foram enviadas pelo OUTRO participante para LIDA
+        paginaMensagens.forEach(mensagem -> {
+            // Se a mensagem não foi enviada pelo usuário logado, e o status não for LIDA, ela passa a ser LIDA
+            if(!mensagem.getRemetente().getId().equals(usuarioId) && mensagem.getStatus() != StatusMensagem.LIDA){
+                mensagem.setStatus(StatusMensagem.LIDA);
+                mensagemRepository.save(mensagem);
+            }
+        });
+
+        // Converte e retorna as mensagens aplicando a regra de negócio da IA
+        return paginaMensagens
+                .map(msg -> {
+                    // Se foi bloqueada pela IA, omitimos o conteúdo real por segurança no front-end
+                    String conteudoExibicao = Boolean.TRUE.equals(msg.getBloqueadaIa())
+                            ? "[Mensagem bloqueada por violar as diretrizes do sistema]"
+                            : msg.getConteudo();
+
+                    return new MensagemResponseDTO(
+                            msg.getId(),
+                            msg.getConversa().getId(),
+                            msg.getRemetente().getId(),
+                            msg.getRemetente().getNome(),
+                            conteudoExibicao,
+                            msg.getAnexoUrl(),
+                            msg.getStatus(),
+                            msg.getBloqueadaIa(),
+                            msg.getCriadoEm()
+                    );
+                });
     }
 
+    // Listagem de Conversas: Lista os canais de chat vinculados ao usuário logado, injetando os dados resumidos do pedido e os dados do outro participante de forma inteligente.
+    @org.springframework.transaction.annotation.Transactional(readOnly = true) // Boa prática: readOnly para consultas
     public Page<ConversaResponseDTO> listarConversas(Long usuarioId, List<StatusConversa> filtro, Pageable pageable) {
-        return Page.empty();
+        log.info("[CHAT] Listando conversas para o usuário {} com filtros de status {}", usuarioId, filtro);
+
+        // Busca as conversas onde o usuário participa utilizando a Query Customizada do repositório
+        Page<com.nahora.model.Conversa> conversas = conversaRepository.findAllByParticipanteIdAndStatus(usuarioId, filtro, pageable);
+
+        return conversas.map(conversa -> {
+            var pedido = conversa.getPedido();
+
+            // Identifica quem é o outro participante da conversa
+            String nomeOutro = "";
+            String fotoOutro = null;
+
+            if (pedido.getCliente().getId().equals(usuarioId)) {
+                // Se o usuário logado é o Cliente, o outro é o Profissional
+                nomeOutro = conversa.getProposta().getProfissional().getNome();
+                fotoOutro = conversa.getProposta().getProfissional().getFoto();
+            } else {
+                // Se o usuário logado é o Profissional, o outro é o Cliente
+                nomeOutro = pedido.getCliente().getNome();
+                fotoOutro = pedido.getCliente().getFoto();
+            }
+
+            return new ConversaResponseDTO(
+                    conversa.getId(),
+                    pedido.getId(),
+                    conversa.getProposta().getId(),
+                    conversa.getStatus(),
+                    conversa.getCriadoEm(),
+                    pedido.getDescricao(),
+                    pedido.getCategoria().name(),
+                    nomeOutro,
+                    fotoOutro
+            );
+        });
     }
-  
 
     public void enviarMensagem(Long conversaId, Long remetenteId, MensagemRequestDTO dto) {
 
