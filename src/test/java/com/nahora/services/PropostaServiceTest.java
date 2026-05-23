@@ -43,6 +43,9 @@ class PropostaServiceTest {
     @Mock
     private ProfissionalRepository profissionalRepository;
 
+    @Mock
+    private ChatService chatService;
+
     @InjectMocks
     private PropostaService propostaService;
 
