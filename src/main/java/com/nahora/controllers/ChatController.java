@@ -7,6 +7,7 @@ import com.nahora.model.enums.StatusConversa;
 import com.nahora.services.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -27,7 +29,7 @@ public class ChatController {
     private final ChatService chatService;
 
     @GetMapping("/conversas")
-    @Operation(summary = "Listar conversas do usuário logado com filtros opcionais de status")
+    @Operation(summary = "Listar conversas do usuário logado com filtros opcionais de status", security = @SecurityRequirement(name = "bearerAuth"))
     public ResponseEntity<Page<ConversaResponseDTO>> listarConversas(
             @AuthenticationPrincipal Usuario usuarioLogado,
             @RequestParam(value = "status", required = false) List<StatusConversa> statusFiltro,
@@ -44,7 +46,7 @@ public class ChatController {
     }
 
     @GetMapping("/conversas/{conversaId}/mensagens")
-    @Operation(summary = "Buscar histórico paginado de mensagens de um canal de chat")
+    @Operation(summary = "Buscar histórico paginado de mensagens de um canal de chat", security = @SecurityRequirement(name = "bearerAuth"))
     public ResponseEntity<Page<MensagemResponseDTO>> buscarHistorico(
             @PathVariable Long conversaId,
             @AuthenticationPrincipal Usuario usuarioLogado,
@@ -57,7 +59,7 @@ public class ChatController {
     }
 
     @GetMapping("/pedidos/{pedidoId}/conversa")
-    @Operation(summary = "Buscar os dados da conversa ativa vinculada a um pedido específico")
+    @Operation(summary = "Buscar os dados da conversa ativa vinculada a um pedido específico", security = @SecurityRequirement(name = "bearerAuth"))
     public ResponseEntity<ConversaResponseDTO> buscarConversaDoPedido(
             @PathVariable Long pedidoId,
             @AuthenticationPrincipal Usuario usuarioLogado,
@@ -72,7 +74,8 @@ public class ChatController {
                 .stream()
                 .filter(c -> c.pedidoId().equals(pedidoId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Nenhuma conversa ativa encontrada para o pedido informado."));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Nenhuma conversa ativa encontrada para o pedido informado."));
 
         return ResponseEntity.ok(conversaDto);
     }
