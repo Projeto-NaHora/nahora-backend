@@ -65,7 +65,7 @@ class BuscaServiceTest {
         profissional.setCidade("Recife");
         profissional.setEstado("PE");
         profissional.setNotaMedia(4.8);
-        profissional.setNumeroAvaliacoes(20);
+        profissional.setTotalAvaliacoes(20);
         profissional.setAnosExperiencia(5);
         profissional.setTotalServicosExecutados(42);
         profissional.setEspecialidades(List.of("Instalação", "Reparos"));

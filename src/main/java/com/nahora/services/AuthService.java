@@ -237,8 +237,11 @@ public class AuthService {
     
         // especificos de profissional
         profissional.setCpf(cpf);
+        profissional.setCidade(request.cidade());
+        profissional.setEstado(request.estado());
         profissional.setAreaAtuacao(request.areaAtuacao());
         profissional.setEspecialidades(request.especialidades());
+        profissional.setDescricaoEspecialidades(request.descricaoEspecialidades());
         profissional.setAnosExperiencia(request.anosExperiencia());
         profissional.setCategoriasAtendidas(List.of(request.categoriaServico()));
         profissional.setRgFrenteUrl(request.rgFrenteUrl());

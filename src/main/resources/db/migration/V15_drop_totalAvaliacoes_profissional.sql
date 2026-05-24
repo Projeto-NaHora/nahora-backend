@@ -1,0 +1,1 @@
+ALTER TABLE profissional DROP COLUMN numero_avaliacoes;

@@ -368,7 +368,7 @@ public class PedidoService {
                 prof.getNome(),
                 prof.getFoto(),
                 prof.getNotaMedia(),
-                prof.getNumeroAvaliacoes(),
+                prof.getTotalAvaliacoes(),
                 prof.getTotalServicosExecutados(),
                 0.0, // Distância simulada
                 proposta.getDescricao(),

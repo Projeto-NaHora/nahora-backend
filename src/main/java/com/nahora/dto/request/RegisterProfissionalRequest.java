@@ -41,8 +41,17 @@ public record RegisterProfissionalRequest(
         @NotEmpty(message = "As especialidades são obrigatórias")
         List<String> especialidades,
 
+        @NotBlank(message = "A descrição das especialidades é obrigátoria")
+        String descricaoEspecialidades,
+
         @NotNull(message = "Anos de experiência são obrigatórios")
         Integer anosExperiencia,
+
+        @NotNull(message = "Cidade é obrigátória")
+        String cidade,
+
+        @NotNull(message = "Estado é obrigátório")
+        String estado,
 
         @NotEmpty(message = "A área de atuação é obrigatória")
         List<String> areaAtuacao,
