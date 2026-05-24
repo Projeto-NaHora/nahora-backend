@@ -12,7 +12,6 @@ import com.nahora.model.enums.StatusConversa;
 import com.nahora.model.enums.StatusProposta;
 import com.nahora.repositories.ConversaRepository;
 import com.nahora.repositories.MensagemRepository;
-import com.nahora.repositories.PedidoRepository;
 import com.nahora.repositories.PropostaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,7 +44,6 @@ class ChatServiceTest {
     @Mock private MensagemRepository mensagemRepository;
     @Mock private SimpMessagingTemplate messagingTemplate;
     @Mock private PushNotificationService pushNotificationService;
-    @Mock private PedidoRepository pedidoRepository;
     @Mock private PropostaRepository propostaRepository;
 
     private Conversa conversaAtiva;
@@ -72,11 +70,11 @@ class ChatServiceTest {
         Proposta proposta = new Proposta();
         proposta.setProfissional(profissional);
         proposta.setStatus(StatusProposta.ATIVA);
+        proposta.setPedido(pedido);
 
         // Mock da Conversa
         conversaAtiva = new Conversa();
         conversaAtiva.setId(100L);
-        conversaAtiva.setPedido(pedido);
         conversaAtiva.setProposta(proposta);
         conversaAtiva.setStatus(StatusConversa.ABERTA);
     }
@@ -163,21 +161,17 @@ class ChatServiceTest {
     @Test
     @DisplayName("Deve abrir um canal com sucesso quando não há canal ativo para a proposta")
     void deveAbrirCanalComSucesso() {
-        Long pedidoId = 100L;
         Long propostaId = 50L;
 
-        Pedido pedido = new Pedido();
         Proposta proposta = new Proposta();
 
         when(conversaRepository.findByPropostaId(propostaId)).thenReturn(Optional.empty());
-        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
         when(propostaRepository.findById(propostaId)).thenReturn(Optional.of(proposta));
 
-        chatService.abrirCanal(pedidoId, propostaId);
+        chatService.abrirCanal(propostaId);
 
         verify(conversaRepository, times(1)).save(argThat(conversa ->
-                conversa.getPedido() == pedido &&
-                        conversa.getProposta() == proposta &&
+                conversa.getProposta() == proposta &&
                         conversa.getStatus() == StatusConversa.ABERTA
         ));
     }
@@ -189,11 +183,11 @@ class ChatServiceTest {
         when(conversaRepository.findByPropostaId(propostaId)).thenReturn(Optional.of(new Conversa()));
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
-            chatService.abrirCanal(100L, propostaId);
+            chatService.abrirCanal(propostaId);
         });
 
         assertTrue(exception.getMessage().contains("Conflito: Já existe um canal de chat"));
-        verifyNoInteractions(pedidoRepository, propostaRepository);
+        verifyNoInteractions(propostaRepository);
     }
 
     @Test
@@ -205,7 +199,7 @@ class ChatServiceTest {
         conversa1.setId(10L);
         conversa1.setStatus(StatusConversa.ABERTA);
 
-        when(conversaRepository.findByPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
+        when(conversaRepository.findByPropostaPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
                 .thenReturn(List.of(conversa1));
 
         chatService.encerrarCanal(pedidoId);
@@ -221,7 +215,7 @@ class ChatServiceTest {
         Conversa conversa = new Conversa();
         conversa.setStatus(StatusConversa.SOMENTE_LEITURA);
 
-        when(conversaRepository.findByPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
+        when(conversaRepository.findByPropostaPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
                 .thenReturn(List.of(conversa));
 
         chatService.fecharCanal(pedidoId);
@@ -247,7 +241,7 @@ class ChatServiceTest {
         cAtivaPropostaConcorrente.setProposta(pRecusada);
         cAtivaPropostaConcorrente.setStatus(StatusConversa.ABERTA);
 
-        when(conversaRepository.findByPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
+        when(conversaRepository.findByPropostaPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
                 .thenReturn(List.of(cAtivaPropostaAceita, cAtivaPropostaConcorrente));
 
         chatService.encerrarCanaisPorPropostasRecusadas(pedidoId, propostaAceitaId);
@@ -264,7 +258,7 @@ class ChatServiceTest {
         Conversa conversa = new Conversa();
         conversa.setStatus(StatusConversa.SOMENTE_LEITURA);
 
-        when(conversaRepository.findByPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
+        when(conversaRepository.findByPropostaPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA))
                 .thenReturn(List.of(conversa));
 
         chatService.reabrirCanalParaDisputa(pedidoId);

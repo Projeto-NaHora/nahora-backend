@@ -20,10 +20,6 @@ public class Conversa {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "pedido_id")
-    private Pedido pedido;
-
     @OneToOne(optional = false)
     @JoinColumn(name = "proposta_id", unique = true)
     private Proposta proposta;

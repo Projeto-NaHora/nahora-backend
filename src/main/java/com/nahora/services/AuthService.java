@@ -53,7 +53,7 @@ public class AuthService {
         // Salvar código no Redis com TTL de 5 minutos
         redisTemplate.opsForValue().set("otp:" + telefone, code, 5, TimeUnit.MINUTES);
         redisTemplate.opsForValue().set("otp_attempts:" + telefone, "0", 5, TimeUnit.MINUTES);
-
+        log.info("OTP gerado para {}: {}", telefone, code); // Log para debug (remover em produção)
         smsService.sendSms(telefone, "Seu código NaHora: " + code + ". Válido por 5 minutos.");
     }
 
