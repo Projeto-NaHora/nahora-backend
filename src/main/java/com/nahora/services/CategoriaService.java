@@ -1,26 +1,25 @@
-package com.nahora.service;
+package com.nahora.services;
 
 import com.nahora.dto.request.CategoriaDTO;
-import com.nahora.model.enums.CategoriaServico;
+import com.nahora.repositories.CategoriaRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class CategoriaService {
 
+    private final CategoriaRepository categoriaRepository;
 
     public List<CategoriaDTO> listarCategorias() {
-        return Arrays.stream(CategoriaServico.values())
-                .map(categoria -> CategoriaDTO.builder()
-                        .id(categoria.name())
-                        .nome(categoria.getNome())
-                        .icone(categoria.getIcone())
+        return categoriaRepository.findAllByOrderByNomeAsc().stream()
+                .map(c -> CategoriaDTO.builder()
+                        .id(c.getCategoriaServico().name())
+                        .nome(c.getNome())
+                        .icone(c.getIcone())
                         .build())
-                .sorted(Comparator.comparing(CategoriaDTO::getNome)) // Ordena por nome
-                .collect(Collectors.toList());
+                .toList();
     }
 }

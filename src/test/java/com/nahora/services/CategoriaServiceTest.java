@@ -1,53 +1,69 @@
 package com.nahora.services;
 
 import com.nahora.dto.request.CategoriaDTO;
+import com.nahora.model.Categoria;
 import com.nahora.model.enums.CategoriaServico;
-import com.nahora.service.CategoriaService;
+import com.nahora.repositories.CategoriaRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
 class CategoriaServiceTest {
 
+    @Mock
+    private CategoriaRepository categoriaRepository;
+
     @InjectMocks
     private CategoriaService categoriaService;
 
-    @Test
-    void listarCategorias_DeveRetornarTodasAsCategoriasDoEnum() {
-        List<CategoriaDTO> resultado = categoriaService.listarCategorias();
-
-        assertThat(resultado).isNotEmpty();
-        assertThat(resultado).hasSize(CategoriaServico.values().length);
+    private Categoria categoria(String nome, String icone, CategoriaServico cs) {
+        Categoria c = new Categoria();
+        c.setNome(nome);
+        c.setIcone(icone);
+        c.setCategoriaServico(cs);
+        return c;
     }
 
     @Test
-    void listarCategorias_DeveRetornarListaOrdenadaAlfabeticamentePorNome() {
+    void listarCategorias_DeveRetornarTodasAsCategoriasMapeadas() {
+        when(categoriaRepository.findAllByOrderByNomeAsc()).thenReturn(List.of(
+                categoria("Elétrica", "⚡", CategoriaServico.ELETRICA),
+                categoria("Marcenaria", "🪵", CategoriaServico.MARCENARIA)
+        ));
+
         List<CategoriaDTO> resultado = categoriaService.listarCategorias();
 
-
-        assertThat(resultado.get(0).getNome()).isEqualTo("Ar Condicionado");
-        assertThat(resultado.get(1).getNome()).isEqualTo("Elétrica");
-        assertThat(resultado.get(resultado.size() - 1).getNome()).isEqualTo("Pintura");
+        assertThat(resultado).hasSize(2);
     }
 
     @Test
-    void listarCategorias_DeveMapearCamposDoEnumCorretamente() {
+    void listarCategorias_DeveMapearCamposCorretamente() {
+        when(categoriaRepository.findAllByOrderByNomeAsc()).thenReturn(
+                List.of(categoria("Elétrica", "⚡", CategoriaServico.ELETRICA))
+        );
+
         List<CategoriaDTO> resultado = categoriaService.listarCategorias();
 
-        CategoriaDTO eletrica = resultado.stream()
-                .filter(c -> "ELETRICA".equals(c.getId()))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("Categoria ELETRICA não encontrada na listagem"));
+        CategoriaDTO dto = resultado.get(0);
+        assertThat(dto.getId()).isEqualTo("ELETRICA");
+        assertThat(dto.getNome()).isEqualTo("Elétrica");
+        assertThat(dto.getIcone()).isEqualTo("⚡");
+    }
 
-        assertThat(eletrica.getNome()).isEqualTo("Elétrica");
-        assertThat(eletrica.getIcone()).isEqualTo("⚡");
+    @Test
+    void listarCategorias_QuandoRepositorioRetornaVazio_DeveRetornarListaVazia() {
+        when(categoriaRepository.findAllByOrderByNomeAsc()).thenReturn(List.of());
+
+        assertThat(categoriaService.listarCategorias()).isEmpty();
     }
 }

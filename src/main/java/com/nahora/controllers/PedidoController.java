@@ -1,6 +1,6 @@
 package com.nahora.controllers;
 
-import com.nahora.dto.request.PedidoCardDTO;
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
 import com.nahora.dto.response.PedidoResponse;
@@ -139,8 +139,14 @@ public class PedidoController {
 
     @GetMapping
     @PreAuthorize("hasRole('CLIENTE')")
-    @Operation(summary = "Lista os pedidos do cliente formatados",
+    @Operation(summary = "Lista os pedidos do cliente autenticado formatados para C01",
             security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetro status inválido"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Usuário autenticado não é cliente")
+    })
     public ResponseEntity<Page<PedidoCardDTO>> listarPedidosDoCliente(
             @RequestParam(required = false) StatusPedido status,
             @RequestParam(defaultValue = "0") int page,

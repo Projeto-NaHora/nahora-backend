@@ -17,4 +17,9 @@ public class LogPushNotificationService implements PushNotificationService {
         log.info("Disparando push de novo pedido. Profissional: {} (ID: {}) | Pedido ID: {}",
                 profissional.getNome(), profissional.getId(), pedido.getId());
     }
+
+    @Override
+    public void enviarNotificacao(String token, String titulo, String corpo) {
+        log.info("[DEV] Push: titulo='{}' corpo='{}' token='{}'", titulo, corpo, token);
+    }
 }

@@ -1,6 +1,6 @@
 package com.nahora.services;
 
-import com.nahora.dto.request.PedidoCardDTO;
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.EnderecoRequest;
 import com.nahora.dto.request.PedidoDistanceRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;

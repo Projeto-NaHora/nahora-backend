@@ -1,6 +1,6 @@
 package com.nahora.services;
 
-import com.nahora.dto.request.PedidoCardDTO;
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoDistanceRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
@@ -134,7 +134,9 @@ public class PedidoService {
         }
         pedido.setEndereco(endereco);
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+        notificarProfissionaisDaCategoria(salvo);
+        return salvo;
     }
 
     public PedidoResponse toResponseDTO(Pedido pedido) {

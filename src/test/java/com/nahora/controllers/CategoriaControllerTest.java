@@ -3,7 +3,7 @@ package com.nahora.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nahora.controllers.CategoriaController;
 import com.nahora.dto.request.CategoriaDTO;
-import com.nahora.service.CategoriaService;
+import com.nahora.services.CategoriaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;

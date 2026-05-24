@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nahora.controllers.PedidoController;
-import com.nahora.dto.request.PedidoCardDTO;
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.EnderecoRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
