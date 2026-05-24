@@ -52,4 +52,20 @@ public class PropostaController {
         HttpStatus status = resultado.criada() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(propostaService.toResponseDTO(resultado.proposta()));
     }
+
+    @GetMapping("/{propostaId}")
+    @Operation(summary = "Retorna os detalhes de uma proposta",
+            description = "Acesso restrito ao cliente dono do pedido ou ao profissional que enviou a proposta.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Proposta encontrada"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado — apenas o cliente dono do pedido ou o profissional da proposta"),
+            @ApiResponse(responseCode = "404", description = "Proposta ou pedido não encontrado")
+    })
+    public ResponseEntity<PropostaResponse> buscarProposta(
+            @PathVariable Long pedidoId,
+            @PathVariable Long propostaId,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+        return ResponseEntity.ok(propostaService.buscarPropostaPorId(propostaId, pedidoId, usuarioAutenticado));
+    }
 }
