@@ -47,10 +47,10 @@ public record RegisterProfissionalRequest(
         @NotNull(message = "Anos de experiência são obrigatórios")
         Integer anosExperiencia,
 
-        @NotNull(message = "Cidade é obrigátória")
+        @NotBlank(message = "Cidade é obrigátória")
         String cidade,
 
-        @NotNull(message = "Estado é obrigátório")
+        @NotBlank(message = "Estado é obrigátório")
         String estado,
 
         @NotEmpty(message = "A área de atuação é obrigatória")
