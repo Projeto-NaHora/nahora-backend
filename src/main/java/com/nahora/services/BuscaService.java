@@ -163,7 +163,7 @@ public class BuscaService {
                 p.getFoto(),
                 p.getPlanoPlus(),
                 primaryCategoriaNome(p),
-                p.getCidade(),
+                p.getCidade() != null && p.getEstado() != null ? p.getCidade() + "," + p.getEstado() : p.getCidade(),
                 distanciaKm,
                 p.getNotaMedia(),
                 p.getTotalAvaliacoes()
