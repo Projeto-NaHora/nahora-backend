@@ -80,7 +80,7 @@ public class PropostaService {
 
         Proposta salva = propostaRepository.save(proposta);
 
-        chatService.abrirCanal(pedido.getId(), salva.getId());
+        chatService.abrirCanal(salva.getId());
 
         return salva;
     }

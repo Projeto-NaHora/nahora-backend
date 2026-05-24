@@ -19,10 +19,12 @@ public interface ConversaRepository extends JpaRepository<Conversa, Long> {
     Optional<Conversa> findByPropostaId(Long propostaId);
 
     // Usado para fechar os canais dos concorrentes quando uma proposta é aceita
-    List<Conversa> findByPedidoIdAndStatusNot(Long pedidoId, StatusConversa status);
+    @Query("SELECT c FROM Conversa c WHERE c.proposta.pedido.id = :pedidoId AND c.status <> :status")
+    List<Conversa> findByPropostaPedidoIdAndStatusNot(@Param("pedidoId") Long pedidoId,
+                                                       @Param("status") StatusConversa status);
 
     @Query("SELECT c FROM Conversa c WHERE " +
-           "(c.pedido.cliente.id = :usuarioId OR c.proposta.profissional.id = :usuarioId) " +
+           "(c.proposta.pedido.cliente.id = :usuarioId OR c.proposta.profissional.id = :usuarioId) " +
            "AND c.status IN :statuses")
     Page<Conversa> findAllByParticipanteIdAndStatus(
             @Param("usuarioId") Long usuarioId,

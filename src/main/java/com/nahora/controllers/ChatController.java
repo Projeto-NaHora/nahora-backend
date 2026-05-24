@@ -68,20 +68,20 @@ public class ChatController {
         return ResponseEntity.ok(historico);
     }
 
-    @GetMapping("/pedidos/{pedidoId}/conversa")
-    @Operation(summary = "Buscar os dados da conversa ativa vinculada a um pedido específico", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/propostas/{propostaId}/conversa")
+    @Operation(summary = "Buscar os dados da conversa vinculada a uma proposta", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Dados da conversa retornados com sucesso"),
-            @ApiResponse(responseCode = "403", description = "Usuário não é participante de nenhuma conversa ativa neste pedido"),
-            @ApiResponse(responseCode = "404", description = "Nenhuma conversa ativa encontrada para o pedido informado")
+            @ApiResponse(responseCode = "403", description = "Usuário não é participante da conversa desta proposta"),
+            @ApiResponse(responseCode = "404", description = "Nenhuma conversa encontrada para a proposta informada")
     })
-    public ResponseEntity<ConversaResponseDTO> buscarConversaDoPedido(
-            @PathVariable Long pedidoId,
+    public ResponseEntity<ConversaResponseDTO> buscarConversaDaProposta(
+            @PathVariable Long propostaId,
             @AuthenticationPrincipal Usuario usuarioLogado) {
 
-        log.info("[HTTP] Buscando conversa ativa do pedido {} para o usuário {}", pedidoId, usuarioLogado.getId());
+        log.info("[HTTP] Buscando conversa da proposta {} para o usuário {}", propostaId, usuarioLogado.getId());
 
-        ConversaResponseDTO conversaDto = chatService.buscarConversaDoPedido(pedidoId, usuarioLogado.getId());
+        ConversaResponseDTO conversaDto = chatService.buscarConversaDaProposta(propostaId, usuarioLogado.getId());
         return ResponseEntity.ok(conversaDto);
     }
 }

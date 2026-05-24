@@ -36,10 +36,9 @@ public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {  
+    public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") 
-                .withSockJS(); 
+                .setAllowedOriginPatterns("*");
     }
 
     @Override
@@ -48,21 +47,22 @@ public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-                
-                // Intercepta apenas o momento exato em que o cliente tenta conectar
+
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String authHeader = accessor.getFirstNativeHeader("Authorization");
                     if (authHeader != null && authHeader.startsWith("Bearer ")) {
                         String jwt = authHeader.substring(7);
-                        String userEmail = jwtService.extractEmail(jwt);
-                        
-                        if (userEmail != null) {
-                            UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
-                            if (jwtService.validateToken(jwt)) {
-                                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                        userDetails, null, userDetails.getAuthorities());
-                                // Associa o usuário à sessão do WebSocket
-                                accessor.setUser(auth);
+                        if (jwtService.validateToken(jwt)) {
+                            String userEmail = jwtService.extractEmail(jwt);
+                            if (userEmail != null) {
+                                try {
+                                    UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
+                                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                                            userDetails, null, userDetails.getAuthorities());
+                                    accessor.setUser(auth);
+                                } catch (Exception e) {
+                                    // User not found or other lookup failure — leave session unauthenticated
+                                }
                             }
                         }
                     }
