@@ -23,16 +23,6 @@ public class BuscaController {
 
     private final BuscaService buscaService;
 
-    @GetMapping("/api/v1/categorias")
-    @Operation(summary = "Lista todas as categorias de serviço disponíveis")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Lista de categorias"),
-            @ApiResponse(responseCode = "401", description = "Não autenticado")
-    })
-    public ResponseEntity<List<CategoriaDTO>> listarCategorias() {
-        return ResponseEntity.ok(buscaService.listarCategorias());
-    }
-
     @GetMapping("/api/v1/profissionais")
     @Operation(summary = "Lista profissionais por categoria (paginado)")
     @ApiResponses({

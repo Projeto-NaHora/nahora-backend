@@ -1,5 +1,6 @@
 package com.nahora.services;
 
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoDistanceRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
@@ -32,12 +33,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,6 +53,7 @@ public class PedidoService {
     private final ClienteRepository clienteRepository;
     private final PropostaRepository propostaRepository;
     private final ProfissionalRepository profissionalRepository;
+    private final PushNotificationService pushNotificationService;
     private final ChatService chatService;
 
     private static final Set<StatusPedido> STATUS_EM_ABERTO = Set.of(
@@ -130,7 +134,9 @@ public class PedidoService {
         }
         pedido.setEndereco(endereco);
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+        notificarProfissionaisDaCategoria(salvo);
+        return salvo;
     }
 
     public PedidoResponse toResponseDTO(Pedido pedido) {
@@ -376,5 +382,113 @@ public class PedidoService {
                 horarios,
                 proposta.getStatus()
         );
+    }
+
+    private double calcularDistanciaHaversine(double lat1, double lon1, double lat2, double lon2) {
+        final int RAIO_TERRA_KM = 6371;
+
+        double latDistancia = Math.toRadians(lat2 - lat1);
+        double lonDistancia = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(latDistancia / 2) * Math.sin(latDistancia / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistancia / 2) * Math.sin(lonDistancia / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return RAIO_TERRA_KM * c;
+    }
+
+    @Async
+    public void notificarProfissionaisDaCategoria(Pedido pedido) {
+        if (pedido.getEndereco() == null || pedido.getEndereco().getCoordenadas() == null) return;
+
+        double latPedido = pedido.getEndereco().getCoordenadas().getY();
+        double lonPedido = pedido.getEndereco().getCoordenadas().getX();
+        double raioMaximoKm = 10.0;
+
+        List<Profissional> profissionaisElegiveis = profissionalRepository
+                .findByCategoriasAtendidasAndAtivoTrueAndPerfilCompletoTrue(pedido.getCategoria());
+
+        for (Profissional profissional : profissionaisElegiveis) {
+            if (profissional.getLocalizacao() != null) {
+                double distancia = calcularDistanciaHaversine(
+                        latPedido, lonPedido,
+                        profissional.getLocalizacao().getY(), profissional.getLocalizacao().getX()
+                );
+
+                if (distancia <= raioMaximoKm) {
+                    pushNotificationService.enviarNotificacaoNovoPedido(profissional, pedido);
+                }
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PedidoCardDTO> listarPedidosDoCliente(Long clienteId, StatusPedido filtro, Pageable pageable) {
+        Page<Pedido> pedidos;
+
+        if (filtro == null) {
+            pedidos = pedidoRepository.findByClienteId(clienteId, pageable);
+        } else {
+            pedidos = pedidoRepository.findByClienteIdAndStatus(clienteId, filtro, pageable);
+        }
+
+        return pedidos.map(this::mapToPedidoCardDTO);
+    }
+
+    private PedidoCardDTO mapToPedidoCardDTO(Pedido pedido) {
+        // Formata a data para o padrão "dd/MM/yyyy"
+        String dataFormatada = "";
+        if (pedido.getDataDesejada() != null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            dataFormatada = pedido.getDataDesejada().format(formatter);
+        }
+
+        boolean isAberto = pedido.getStatus() == StatusPedido.ABERTO;
+        boolean isAndamentoOuConcluido = pedido.getStatus() == StatusPedido.EM_ANDAMENTO
+                || pedido.getStatus() == StatusPedido.CONCLUIDO;
+
+        String periodoCalculado = null;
+
+        if (isAberto && pedido.getDataDesejada() != null) {
+            int hora = pedido.getDataDesejada().getHour();
+            int minuto = pedido.getDataDesejada().getMinute();
+
+            if (hora == 0 && minuto == 0) {
+                periodoCalculado = "A combinar";
+            } else if (hora >= 6 && hora < 12) {
+                periodoCalculado = "Manhã";
+            } else if (hora >= 12 && hora < 18) {
+                periodoCalculado = "Tarde";
+            } else {
+                periodoCalculado = "Noite";
+            }
+        }
+
+        String enderecoFormatado = null;
+        if (isAberto && pedido.getEndereco() != null) {
+            Endereco end = pedido.getEndereco();
+            enderecoFormatado = String.format("%s, %s - %s, %s",
+                    end.getLogradouro(), end.getNumero(), end.getBairro(), end.getCidade());
+        }
+
+        // Corta a descrição
+        String descricaoCurta = pedido.getDescricao();
+        if (descricaoCurta != null && descricaoCurta.length() > 90) {
+            descricaoCurta = descricaoCurta.substring(0, 87) + "...";
+        }
+
+        return PedidoCardDTO.builder()
+                .id(pedido.getId())
+                .titulo(pedido.getCategoria().getNome())
+                .status(pedido.getStatus())
+                .data(dataFormatada)
+                .periodo(periodoCalculado)
+                .profissionalNome(isAndamentoOuConcluido && pedido.getProfissionalAtribuido() != null
+                        ? pedido.getProfissionalAtribuido().getNome() : null)
+                .descricao(descricaoCurta)
+                .endereco(enderecoFormatado)
+                .build();
     }
 }

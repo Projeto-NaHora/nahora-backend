@@ -1,5 +1,6 @@
 package com.nahora.controllers;
 
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
 import com.nahora.dto.response.PedidoResponse;
@@ -15,10 +16,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -131,5 +135,32 @@ public class PedidoController {
 
         AceitarPropostaResponseDTO response = pedidoService.aceitarProposta(pedidoId, propostaId, clienteAutenticado.getId());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('CLIENTE')")
+    @Operation(summary = "Lista os pedidos do cliente autenticado formatados para C01",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetro status inválido"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Usuário autenticado não é cliente")
+    })
+    public ResponseEntity<Page<PedidoCardDTO>> listarPedidosDoCliente(
+            @RequestParam(required = false) StatusPedido status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem acessar seus pedidos.");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "criadoEm"));
+
+        Page<PedidoCardDTO> pedidosPage = pedidoService.listarPedidosDoCliente(clienteAutenticado.getId(), status, pageable);
+
+        return ResponseEntity.ok(pedidosPage);
     }
 }

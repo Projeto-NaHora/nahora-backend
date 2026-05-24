@@ -18,6 +18,8 @@ public interface ProfissionalRepository extends JpaRepository<Profissional, Long
     boolean existsByCpf(String cpf);
     Optional<Profissional> findByEmail(String email);
 
+    List<Profissional> findByCategoriasAtendidasAndAtivoTrueAndPerfilCompletoTrue(CategoriaServico categoria);
+
     @Query("""
         SELECT DISTINCT p FROM Profissional p
         JOIN FETCH p.categoriasAtendidas c
@@ -27,11 +29,6 @@ public interface ProfissionalRepository extends JpaRepository<Profissional, Long
         """)
     Page<Profissional> findByCategoria(@Param("categoria") CategoriaServico categoria, Pageable pageable);
 
-    /**
-     * Busca por nome do profissional ou pelo nome de exibição da categoria (case-insensitive).
-     * A busca na Categoria usa o nome da tabela 'categoria' para suportar variações de acento,
-     * ex.: "Marcenaria" ao invés de "MARCENARIA".
-     */
     @Query("""
         SELECT DISTINCT p FROM Profissional p
         LEFT JOIN FETCH p.categoriasAtendidas c

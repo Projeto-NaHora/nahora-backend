@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nahora.controllers.PedidoController;
+import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.EnderecoRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
@@ -14,7 +15,6 @@ import com.nahora.dto.response.PropostaResponseDTO;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
 import com.nahora.model.Pedido;
-import com.nahora.model.Profissional;
 import com.nahora.model.enums.CategoriaServico;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.model.enums.StatusProposta;
@@ -56,6 +56,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.nullValue;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
@@ -85,6 +86,7 @@ class PedidoControllerTest {
                                           NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
                 Cliente cliente = new Cliente();
                 cliente.setId(1L);
+                cliente.setNome("João");
                 return cliente;
             }
         };
@@ -223,7 +225,6 @@ class PedidoControllerTest {
                 .andExpect(status().isConflict());
     }
 
-
     @Test
     void listarPedidosParaProfissional_DeveRetornar200_ComListaDePedidos() throws Exception {
         PedidoResumoResponse resumo = PedidoResumoResponse.builder()
@@ -274,8 +275,6 @@ class PedidoControllerTest {
                 .andExpect(status().isBadRequest());
     } // <--- CHAVE DE FECHAMENTO ADICIONADA AQUI
 
-    // --- UC-09: listarPropostas ---
-
     @Test
     void listarPropostas_ComoCliente_DeveRetornar200ComLista() throws Exception {
         PropostaResponseDTO dto = new PropostaResponseDTO(
@@ -309,8 +308,6 @@ class PedidoControllerTest {
         mockMvc.perform(get("/api/v1/pedidos/10/propostas"))
                 .andExpect(status().isForbidden());
     }
-
-    // --- UC-09: aceitarProposta ---
 
     @Test
     void aceitarProposta_ComDadosValidos_DeveRetornar200() throws Exception {
@@ -353,8 +350,6 @@ class PedidoControllerTest {
         mockMvc.perform(post("/api/v1/pedidos/10/propostas/99/aceitar"))
                 .andExpect(status().isNotFound());
     }
-
-    // --- listarMeusPedidos ---
 
     @Test
     void listarMeusPedidos_SemFiltroStatus_DeveRetornar200ComPedidos() throws Exception {
@@ -409,5 +404,58 @@ class PedidoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isEmpty())
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void listarPedidosDoCliente_SemFiltroStatus_DeveRetornar200ComCards() throws Exception {
+        PedidoCardDTO card1 = PedidoCardDTO.builder()
+                .id(100L)
+                .titulo("Elétrica")
+                .status(StatusPedido.ABERTO)
+                .data("20/05/2026")
+                .descricao("Conserto do chuveiro fiação")
+                .endereco("Rua X, 10 - Centro, Recife")
+                .build();
+
+        Page<PedidoCardDTO> pageMock = new PageImpl<>(List.of(card1), PageRequest.of(0, 10), 1);
+
+        when(pedidoService.listarPedidosDoCliente(eq(1L), isNull(), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(100))
+                .andExpect(jsonPath("$.content[0].titulo").value("Elétrica"))
+                .andExpect(jsonPath("$.content[0].status").value("ABERTO"))
+                .andExpect(jsonPath("$.content[0].data").value("20/05/2026"))
+                .andExpect(jsonPath("$.content[0].endereco").value("Rua X, 10 - Centro, Recife"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void listarPedidosDoCliente_ComFiltroStatus_DeveRetornar200ComCardsFiltrados() throws Exception {
+        PedidoCardDTO card2 = PedidoCardDTO.builder()
+                .id(101L)
+                .titulo("Pintura")
+                .status(StatusPedido.EM_ANDAMENTO)
+                .data("18/05/2026")
+                .descricao("Pintura de salas")
+                .profissionalNome("Fernando Pintor")
+                .build();
+
+        Page<PedidoCardDTO> pageMock = new PageImpl<>(List.of(card2), PageRequest.of(0, 10), 1);
+
+        when(pedidoService.listarPedidosDoCliente(eq(1L), eq(StatusPedido.EM_ANDAMENTO), any(Pageable.class)))
+                .thenReturn(pageMock);
+
+        mockMvc.perform(get("/api/v1/pedidos")
+                        .param("status", "EM_ANDAMENTO"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(101))
+                .andExpect(jsonPath("$.content[0].status").value("EM_ANDAMENTO"))
+                .andExpect(jsonPath("$.content[0].profissionalNome").value("Fernando Pintor"))
+                .andExpect(jsonPath("$.content[0].endereco").value(nullValue()));
     }
 }
