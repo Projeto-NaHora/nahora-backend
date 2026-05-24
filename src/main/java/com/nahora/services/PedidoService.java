@@ -7,6 +7,7 @@ import com.nahora.dto.response.AceitarPropostaResponseDTO;
 import com.nahora.dto.response.EnderecoResponse;
 import com.nahora.dto.response.PedidoResponse;
 import com.nahora.dto.response.PedidoResumoResponse;
+import com.nahora.dto.response.PedidoPublicoResponse;
 import com.nahora.dto.response.PropostaResponseDTO;
 import com.nahora.model.Cliente;
 import com.nahora.model.Endereco;
@@ -186,6 +187,31 @@ public class PedidoService {
         return toResponseDTO(pedido);
     }
 
+    @Transactional(readOnly = true)
+    public PedidoPublicoResponse buscarPedidoPublicoPorId(Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        PedidoPublicoResponse response = new PedidoPublicoResponse();
+        response.setId(pedido.getId());
+        response.setCategoria(pedido.getCategoria());
+        response.setDescricao(pedido.getDescricao());
+        response.setUrgencia(pedido.getUrgencia());
+        response.setOrcamentoEstimado(pedido.getOrcamentoEstimado());
+        response.setStatus(pedido.getStatus());
+        response.setCriadoEm(pedido.getCriadoEm());
+        response.setClienteNome(pedido.getCliente().getNome());
+        response.setFotos(List.copyOf(pedido.getFotos()));
+        response.setDataDesejada(pedido.getDataDesejada());
+
+        if (pedido.getEndereco() != null) {
+            response.setBairro(pedido.getEndereco().getBairro());
+            response.setCidade(pedido.getEndereco().getCidade());
+        }
+
+        return response;
+    }
+
     private Profissional getProfissionalAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -354,6 +380,104 @@ public class PedidoService {
                 ? pedidoRepository.findByClienteIdAndStatusIn(clienteId, status, pageable)
                 : pedidoRepository.findByClienteId(clienteId, pageable);
         return pedidos.map(this::toResponseDTO);
+    }
+
+    @Transactional
+    public PedidoResponse cancelarPedido(Long pedidoId, Long clienteId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        if (!pedido.getCliente().getId().equals(clienteId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o dono do pedido pode cancelá-lo");
+        }
+
+        if (pedido.getStatus() != StatusPedido.ABERTO) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Apenas pedidos com status ABERTO podem ser cancelados");
+        }
+
+        pedido.setStatus(StatusPedido.CANCELADO);
+
+        List<Proposta> propostas = propostaRepository.findByPedidoId(pedidoId);
+        for (Proposta p : propostas) {
+            if (p.getStatus() == StatusProposta.ATIVA) {
+                p.setStatus(StatusProposta.RECUSADA);
+            }
+        }
+
+        pedidoRepository.save(pedido);
+        return toResponseDTO(pedido);
+    }
+
+    @Transactional
+    public PedidoResponse atualizarPedido(Long pedidoId, Long clienteId, PedidoRequest request) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        if (!pedido.getCliente().getId().equals(clienteId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o dono do pedido pode editá-lo");
+        }
+
+        if (pedido.getStatus() != StatusPedido.ABERTO) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Apenas pedidos com status ABERTO podem ser editados");
+        }
+
+        pedido.setCategoria(request.getCategoria());
+        pedido.setDescricao(request.getDescricao().trim());
+        pedido.setUrgencia(request.getUrgencia());
+        pedido.setOrcamentoEstimado(request.getOrcamentoEstimado());
+        pedido.setDataDesejada(request.getDataDesejada());
+        pedido.setFotos(request.getFotos() != null ? request.getFotos() : List.of());
+
+        Endereco endereco;
+        if (request.getEnderecoSalvoIndex() != null) {
+            List<Endereco> enderecosSalvos = pedido.getCliente().getEnderecosSalvos();
+            int index = request.getEnderecoSalvoIndex();
+            if (index < 0 || index >= enderecosSalvos.size()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Índice de endereço salvo inválido. Cliente tem " + enderecosSalvos.size() + " endereço(s).");
+            }
+            Endereco original = enderecosSalvos.get(index);
+            endereco = new Endereco();
+            endereco.setLogradouro(original.getLogradouro());
+            endereco.setNumero(original.getNumero());
+            endereco.setComplemento(original.getComplemento());
+            endereco.setBairro(original.getBairro());
+            endereco.setCidade(original.getCidade());
+            endereco.setEstado(original.getEstado());
+            endereco.setCep(original.getCep());
+            if (original.getCoordenadas() != null) {
+                Point point = geometryFactory.createPoint(original.getCoordenadas().getCoordinate());
+                point.setSRID(4326);
+                endereco.setCoordenadas(point);
+            }
+        } else {
+            if (request.getEndereco() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "É necessário informar o endereço (novo ou índice de endereço salvo).");
+            }
+            endereco = new Endereco();
+            endereco.setLogradouro(request.getEndereco().getLogradouro());
+            endereco.setNumero(request.getEndereco().getNumero());
+            endereco.setComplemento(request.getEndereco().getComplemento());
+            endereco.setBairro(request.getEndereco().getBairro());
+            endereco.setCidade(request.getEndereco().getCidade());
+            endereco.setEstado(request.getEndereco().getEstado());
+            endereco.setCep(request.getEndereco().getCep());
+
+            Double lat = request.getEndereco().getLatitude();
+            Double lng = request.getEndereco().getLongitude();
+            if (lat != null && lng != null) {
+                Point point = geometryFactory.createPoint(new Coordinate(lng, lat));
+                point.setSRID(4326);
+                endereco.setCoordenadas(point);
+            }
+        }
+        pedido.setEndereco(endereco);
+
+        pedidoRepository.save(pedido);
+        return toResponseDTO(pedido);
     }
 
     private PropostaResponseDTO mapToPropostaResponseDTO(Proposta proposta) {

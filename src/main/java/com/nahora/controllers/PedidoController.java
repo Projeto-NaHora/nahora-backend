@@ -4,6 +4,7 @@ import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
 import com.nahora.dto.response.PedidoResponse;
 import com.nahora.dto.response.PedidoResumoResponse;
+import com.nahora.dto.response.PedidoPublicoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Pedido;
 import com.nahora.model.Usuario;
@@ -59,6 +60,59 @@ public class PedidoController {
             @PathVariable Long pedidoId,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
         return ResponseEntity.ok(pedidoService.buscarPedidoPorId(pedidoId, usuarioAutenticado));
+    }
+
+    @GetMapping("/{pedidoId}/public")
+    @Operation(summary = "Retorna detalhes públicos de um pedido (sem informações sensíveis)",
+            description = "Endpoint público. Não requer autenticação.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Detalhes públicos retornados"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
+    })
+    public ResponseEntity<PedidoPublicoResponse> buscarPedidoPublico(
+            @PathVariable Long pedidoId) {
+        return ResponseEntity.ok(pedidoService.buscarPedidoPublicoPorId(pedidoId));
+    }
+
+    @DeleteMapping("/{pedidoId}")
+    @Operation(summary = "Cancela um pedido do cliente autenticado",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pedido cancelado com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Usuário não é o dono do pedido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(responseCode = "422", description = "Pedido não está com status ABERTO")
+    })
+    public ResponseEntity<PedidoResponse> cancelarPedido(
+            @PathVariable Long pedidoId,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem cancelar pedidos.");
+        }
+
+        return ResponseEntity.ok(pedidoService.cancelarPedido(pedidoId, clienteAutenticado.getId()));
+    }
+
+    @PutMapping("/{pedidoId}")
+    @Operation(summary = "Atualiza um pedido do cliente autenticado",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pedido atualizado com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Usuário não é o dono do pedido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(responseCode = "422", description = "Pedido não está com status ABERTO")
+    })
+    public ResponseEntity<PedidoResponse> atualizarPedido(
+            @PathVariable Long pedidoId,
+            @Valid @RequestBody PedidoRequest request,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem editar pedidos.");
+        }
+
+        return ResponseEntity.ok(pedidoService.atualizarPedido(pedidoId, clienteAutenticado.getId(), request));
     }
 
     @GetMapping("/meus")
