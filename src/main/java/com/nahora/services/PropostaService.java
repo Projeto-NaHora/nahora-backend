@@ -4,10 +4,12 @@ import com.nahora.dto.request.HorarioPropostaDTO;
 import com.nahora.dto.request.PropostaRequestDTO;
 import com.nahora.dto.response.HorarioPropostaResponse;
 import com.nahora.dto.response.PropostaResponse;
+import com.nahora.model.Cliente;
 import com.nahora.model.HorarioProposta;
 import com.nahora.model.Pedido;
 import com.nahora.model.Profissional;
 import com.nahora.model.Proposta;
+import com.nahora.model.Usuario;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.model.enums.StatusProposta;
 import com.nahora.repositories.PedidoRepository;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.nahora.services.ChatService;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +32,7 @@ public class PropostaService {
     private final PropostaRepository propostaRepository;
     private final PedidoRepository pedidoRepository;
     private final ProfissionalRepository profissionalRepository;
-
+    private final ChatService chatService;
     public record PropostaSalvaResult(Proposta proposta, boolean criada) {}
 
     @Transactional
@@ -77,8 +80,7 @@ public class PropostaService {
 
         Proposta salva = propostaRepository.save(proposta);
 
-        // TODO (UH-27 — ChatService): abrir automaticamente o canal entre cliente e profissional
-        // chatService.abrirCanal(pedido.getId(), salva.getId());
+        chatService.abrirCanal(pedido.getId(), salva.getId());
 
         return salva;
     }
@@ -121,6 +123,27 @@ public class PropostaService {
 
     private boolean seOverpoem(HorarioPropostaDTO a, HorarioPropostaDTO b) {
         return a.getInicio().isBefore(b.getFim()) && b.getInicio().isBefore(a.getFim());
+    }
+
+    @Transactional(readOnly = true)
+    public PropostaResponse buscarPropostaPorId(Long propostaId, Long pedidoId, Usuario usuario) {
+        Proposta proposta = propostaRepository.findById(propostaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposta não encontrada"));
+
+        if (!proposta.getPedido().getId().equals(pedidoId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposta não encontrada para este pedido");
+        }
+
+        boolean isCliente = usuario instanceof Cliente
+                && proposta.getPedido().getCliente().getId().equals(usuario.getId());
+        boolean isProfissional = usuario instanceof Profissional
+                && proposta.getProfissional().getId().equals(usuario.getId());
+
+        if (!isCliente && !isProfissional) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado à proposta");
+        }
+
+        return toResponseDTO(proposta);
     }
 
     public PropostaResponse toResponseDTO(Proposta proposta) {

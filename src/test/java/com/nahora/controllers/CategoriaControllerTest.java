@@ -49,9 +49,9 @@ class CategoriaControllerTest {
     @Test
     void listarCategorias_DeveRetornar200EListaDeCategoriasOrdenada() throws Exception {
         CategoriaDTO c1 = CategoriaDTO.builder()
-                .id("AR_CONDICIONADO")
-                .nome("Ar Condicionado")
-                .icone("❄️")
+                .id("MARCENARIA")
+                .nome("Marcenaria")
+                .icone("🪵")
                 .build();
 
         CategoriaDTO c2 = CategoriaDTO.builder()
@@ -70,9 +70,9 @@ class CategoriaControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value("AR_CONDICIONADO"))
-                .andExpect(jsonPath("$[0].nome").value("Ar Condicionado"))
-                .andExpect(jsonPath("$[0].icone").value("❄️"))
+                .andExpect(jsonPath("$[0].id").value("MARCENARIA"))
+                .andExpect(jsonPath("$[0].nome").value("Marcenaria"))
+                .andExpect(jsonPath("$[0].icone").value("🪵"))
                 .andExpect(jsonPath("$[1].id").value("ELETRICA"))
                 .andExpect(jsonPath("$[1].nome").value("Elétrica"))
                 .andExpect(jsonPath("$[1].icone").value("⚡"));

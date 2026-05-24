@@ -6,6 +6,8 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.nahora.model.enums.StatusMensagem;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,7 +35,10 @@ public class Mensagem {
     @Column(name = "anexo_url")
     private String anexoUrl;
 
-    private Boolean lida = false;
+    // NOVO STATUS
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusMensagem status = StatusMensagem.ENVIADA;
 
     // Flags para o filtro de Inteligência Artificial
     @Column(name = "bloqueada_ia")

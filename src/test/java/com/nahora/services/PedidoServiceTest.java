@@ -15,6 +15,7 @@ import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.PedidoRepository;
 import com.nahora.repositories.ProfissionalRepository;
 import com.nahora.repositories.PropostaRepository;
+import com.nahora.services.ChatService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,9 @@ class PedidoServiceTest {
 
     @Mock
     private PushNotificationService pushNotificationService;
+
+    @Mock
+    private ChatService chatService;
 
     @InjectMocks
     private PedidoService pedidoService;

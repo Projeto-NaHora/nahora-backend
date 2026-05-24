@@ -9,7 +9,7 @@ public enum CategoriaServico {
     PEDREIRO("Pedreiro", "🧱"),
     ENCANAMENTO("Encanamento", "🪠"),
     PINTURA("Pintura", "🎨"),
-    AR_CONDICIONADO("Ar Condicionado", "❄️");
+    MARCENARIA("Marcenaria", "🪵");
 
     private final String nome;
     private final String icone;

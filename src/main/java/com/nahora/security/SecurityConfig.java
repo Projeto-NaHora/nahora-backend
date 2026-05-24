@@ -13,12 +13,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.nahora.repositories.UsuarioRepository;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final UsuarioRepository usuarioRepository;
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/health",
@@ -27,8 +30,26 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/actuator/**"
+            "/actuator/**",
+            "/ws/**"
     };
+
+    @Bean
+    public org.springframework.security.core.userdetails.UserDetailsService userDetailsService() {
+        return username -> {
+
+            com.nahora.model.Usuario usuario = usuarioRepository.findByEmail(username)
+                    .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado: " + username));
+
+            // Converte os dados para o formato que o Spring Security entende e exige
+            return org.springframework.security.core.userdetails.User
+                    .withUsername(usuario.getEmail())
+                    .password(usuario.getSenha())
+                    // Colocamos uma permissão genérica apenas para a conexão do WebSocket ser aprovada
+                    .authorities("ROLE_USER") 
+                    .build();
+        };
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
