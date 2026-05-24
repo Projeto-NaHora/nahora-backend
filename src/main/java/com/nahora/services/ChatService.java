@@ -80,7 +80,7 @@ public class ChatService {
                     log.info("[CHAT] Conversa {} alterada para SOMENTE_LEITURA", conversa.getId());
                 });
     }
-    // Encerramento definitivo: Transiciona o canal de SOMENTE_LEITURA para FECHADA. Chamado após a confirmação do pagamento pelo cliente.
+    // Encerramento definitivo: Transiciona o canal para FECHADA. Chamado quando o pedido transiciona para COMPLETED (cliente confirma conclusão do serviço).
     @org.springframework.transaction.annotation.Transactional
     public void fecharCanal(Long pedidoId) {
         log.info("[CHAT] Fechando definitivamente os canais do pedido {}", pedidoId);
@@ -214,6 +214,7 @@ public class ChatService {
         });
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void enviarMensagem(Long conversaId, Long remetenteId, MensagemRequestDTO dto) {
 
         Conversa conversa = conversaRepository.findById(conversaId)
@@ -295,5 +296,47 @@ public class ChatService {
         pushNotificationService.enviarNotificacao(tokenDestinatario, tituloPush, dto.conteudo());
 
         log.info("Mensagem {} enviada no canal /topic/conversa/{}", mensagem.getId(), conversaId);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ConversaResponseDTO buscarConversaDoPedido(Long pedidoId, Long usuarioId) {
+        List<StatusConversa> statusesAtivos = List.of(StatusConversa.ABERTA, StatusConversa.SOMENTE_LEITURA, StatusConversa.EM_DISPUTA);
+
+        List<com.nahora.model.Conversa> conversas = conversaRepository.findByPedidoIdAndStatusNot(pedidoId, StatusConversa.FECHADA);
+
+        boolean existeConversa = !conversas.isEmpty();
+        if (!existeConversa) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Nenhuma conversa ativa encontrada para o pedido informado.");
+        }
+
+        return conversas.stream()
+                .filter(c -> statusesAtivos.contains(c.getStatus()))
+                .filter(c -> c.getPedido().getCliente().getId().equals(usuarioId)
+                          || c.getProposta().getProfissional().getId().equals(usuarioId))
+                .findFirst()
+                .map(conversa -> {
+                    var pedido = conversa.getPedido();
+                    String nomeOutro;
+                    String fotoOutro;
+                    if (pedido.getCliente().getId().equals(usuarioId)) {
+                        nomeOutro = conversa.getProposta().getProfissional().getNome();
+                        fotoOutro = conversa.getProposta().getProfissional().getFoto();
+                    } else {
+                        nomeOutro = pedido.getCliente().getNome();
+                        fotoOutro = pedido.getCliente().getFoto();
+                    }
+                    return new ConversaResponseDTO(
+                            conversa.getId(),
+                            pedido.getId(),
+                            conversa.getProposta().getId(),
+                            conversa.getStatus(),
+                            conversa.getCriadoEm(),
+                            pedido.getDescricao(),
+                            pedido.getCategoria().name(),
+                            nomeOutro,
+                            fotoOutro
+                    );
+                })
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não é participante de nenhuma conversa ativa neste pedido."));
     }
 }
