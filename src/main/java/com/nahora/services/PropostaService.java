@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.nahora.services.ChatService;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +30,7 @@ public class PropostaService {
     private final PropostaRepository propostaRepository;
     private final PedidoRepository pedidoRepository;
     private final ProfissionalRepository profissionalRepository;
-
+    private final ChatService chatService;
     public record PropostaSalvaResult(Proposta proposta, boolean criada) {}
 
     @Transactional
@@ -77,8 +78,7 @@ public class PropostaService {
 
         Proposta salva = propostaRepository.save(proposta);
 
-        // TODO (UH-27 — ChatService): abrir automaticamente o canal entre cliente e profissional
-        // chatService.abrirCanal(pedido.getId(), salva.getId());
+        chatService.abrirCanal(pedido.getId(), salva.getId());
 
         return salva;
     }

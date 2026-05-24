@@ -37,7 +37,7 @@ public class PedidoController {
     private final PedidoService pedidoService;
 
     @PostMapping
-    @Operation(summary = "Cria um pedido associado a um cliente")
+    @Operation(summary = "Cria um pedido associado a um cliente", security = @SecurityRequirement(name = "bearerAuth"))
     public ResponseEntity<PedidoResponse> criarPedido(
             @Valid @RequestBody PedidoRequest request,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
@@ -93,7 +93,7 @@ public class PedidoController {
     } // <--- CHAVE ADICIONADA AQUI
 
     @GetMapping("/{pedidoId}/propostas")
-    @Operation(summary = "Lista as propostas ativas/pendentes recebidas para um pedido (Tela C05)")
+    @Operation(summary = "Lista as propostas ativas/pendentes recebidas para um pedido (Tela C05)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
             @ApiResponse(responseCode = "403", description = "Usuário autenticado não é o dono do pedido"),
@@ -113,7 +113,7 @@ public class PedidoController {
     }
 
     @PostMapping("/{pedidoId}/propostas/{propostaId}/aceitar")
-    @Operation(summary = "Aceita uma proposta e atribui o pedido ao profissional escolhido (UC-09)")
+    @Operation(summary = "Aceita uma proposta e atribui o pedido ao profissional escolhido (UC-09)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Aceite realizado com sucesso"),
             @ApiResponse(responseCode = "403", description = "Usuário autenticado não é o dono do pedido"),

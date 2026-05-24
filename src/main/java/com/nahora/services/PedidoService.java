@@ -50,6 +50,7 @@ public class PedidoService {
     private final ClienteRepository clienteRepository;
     private final PropostaRepository propostaRepository;
     private final ProfissionalRepository profissionalRepository;
+    private final ChatService chatService;
 
     private static final Set<StatusPedido> STATUS_EM_ABERTO = Set.of(
             StatusPedido.ABERTO,
@@ -327,11 +328,9 @@ public class PedidoService {
         for (Proposta p : todasPropostas) {
             if (!p.getId().equals(propostaId) && p.getStatus() == StatusProposta.ATIVA) {
                 p.setStatus(StatusProposta.RECUSADA);
-
-                // Mock do encerramento de canais de Chat (UH-27 / Módulo de Mensageria)
-                System.out.println("[CHAT MOCK] Encerrando canal de chat do pedido " + pedidoId + " para o profissional " + p.getProfissional().getId());
             }
         }
+        chatService.encerrarCanaisPorPropostasRecusadas(pedidoId, propostaId);
 
         // Atualizar o status do Pedido para EM_ANDAMENTO e atribuir o profissional
         pedido.setStatus(StatusPedido.EM_ANDAMENTO);
