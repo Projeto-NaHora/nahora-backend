@@ -127,8 +127,11 @@ class AuthServiceTest {
                 CategoriaServico.ELETRICA,
                 "12345678901",
                 List.of("Eletricista"),
+                "Faço muitas coisas",
                 5,
-                List.of("Recife"),
+                "Carpina",
+                "Pernambuco",
+                List.of("Chuveiro"),
                 "http://rg-frente.com",
                 "http://rg-verso.com",
                 "http://selfie.com"
@@ -170,7 +173,17 @@ class AuthServiceTest {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
                 "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                CategoriaServico.ELETRICA,
+                "12345678901",
+                List.of("Eletricista"),
+                "Faço muitas coisas",
+                5,
+                "Recife",
+                "Pernambuco",
+                List.of("Marceneiro"),
+                "http://rg-frente.com",
+                "http://rg-verso.com",
+                "http://selfie.com"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(true);
@@ -189,7 +202,7 @@ class AuthServiceTest {
     void registerProfissional_CpfJaEmUso() {
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
                 "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), "Faço muitas coisas",5,"Vitoria de Santo Antão","Pernambuco", List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
@@ -209,7 +222,7 @@ class AuthServiceTest {
     void registerProfissional_NormalizaCpfComPontuacao() {
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
                 "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "123.456.789-01", List.of("Eletricista"), 5, List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                CategoriaServico.ELETRICA, "123.456.789-01", List.of("Eletricista"), "Faço muitas coisas",5, "Jabotaão", "Pernambuco",List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
@@ -229,7 +242,7 @@ class AuthServiceTest {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
                 "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), "Faço muitas coisas",5, "Brumadinho", "Pernambuco",List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
@@ -250,7 +263,7 @@ class AuthServiceTest {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
                 "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), 5, List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), "Faço muitas coisas",5, "Limoeiro", "Pernambico",List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);

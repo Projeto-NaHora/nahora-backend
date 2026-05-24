@@ -65,7 +65,7 @@ class BuscaServiceTest {
         profissional.setCidade("Recife");
         profissional.setEstado("PE");
         profissional.setNotaMedia(4.8);
-        profissional.setNumeroAvaliacoes(20);
+        profissional.setTotalAvaliacoes(20);
         profissional.setAnosExperiencia(5);
         profissional.setTotalServicosExecutados(42);
         profissional.setEspecialidades(List.of("Instalação", "Reparos"));
@@ -109,7 +109,7 @@ class BuscaServiceTest {
         ProfissionalCardDTO card = response.profissionais().get(0);
         assertEquals("João Eletricista", card.nome());
         assertEquals("Elétrica", card.categoriaNome());
-        assertEquals("Recife", card.cidade());
+        assertEquals("Recife,PE", card.cidade());
         assertNull(card.distanciaKm());
     }
 
@@ -194,7 +194,7 @@ class BuscaServiceTest {
         assertEquals(10L, dto.id());
         assertEquals("João Eletricista", dto.nome());
         assertEquals("Elétrica", dto.categoriaNome());
-        assertEquals("Recife", dto.cidade());
+        assertEquals("Recife,PE", dto.cidade());
         assertEquals(4.8, dto.mediaAvaliacoes());
         assertEquals(20, dto.totalAvaliacoes());
         assertEquals(5, dto.anosExperiencia());

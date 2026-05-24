@@ -117,6 +117,11 @@ public class BuscaService {
         List<String> portfolio = p.getPortfolio() != null ? p.getPortfolio() : List.of();
         List<String> portfolioFotos = portfolio.stream().limit(3).toList();
 
+        // força a criação de uma lista ao invés de utilizar um proxy
+        List<String> especialidades = p.getEspecialidades() != null
+                ? new ArrayList<>(p.getEspecialidades())
+                : List.of();
+
         return new ProfissionalPerfilDTO(
                 p.getId(),
                 p.getNome(),
@@ -124,13 +129,13 @@ public class BuscaService {
                 p.getPlanoPlus(),
                 p.getDisponivel(),
                 primaryCategoriaNome(p),
-                p.getCidade(),
+                p.getCidade() + "," + p.getEstado(),
                 p.getNotaMedia(),
-                p.getNumeroAvaliacoes(),
+                p.getTotalAvaliacoes(),
                 p.getAnosExperiencia(),
                 p.getTotalServicosExecutados(),
                 p.getDescricaoEspecialidades(),
-                p.getEspecialidades(),
+                especialidades,
                 p.getBio(),
                 portfolioFotos,
                 portfolio.size()
@@ -158,10 +163,10 @@ public class BuscaService {
                 p.getFoto(),
                 p.getPlanoPlus(),
                 primaryCategoriaNome(p),
-                p.getCidade(),
+                p.getCidade() != null && p.getEstado() != null ? p.getCidade() + "," + p.getEstado() : p.getCidade(),
                 distanciaKm,
                 p.getNotaMedia(),
-                p.getNumeroAvaliacoes()
+                p.getTotalAvaliacoes()
         );
     }
 
