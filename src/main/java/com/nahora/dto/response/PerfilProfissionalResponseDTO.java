@@ -8,6 +8,8 @@ public record PerfilProfissionalResponseDTO(
         Long id,
         String nome,
         String foto,
+        String profissao,
+        String cep,
         String bio,
         List<CategoriaServico> categorias,
         List<String> especialidades,
@@ -19,7 +21,4 @@ public record PerfilProfissionalResponseDTO(
         List<String> portfolio,
         Boolean disponivel,
         StatusVerificacao statusVerificacao
-) {
-    
-}
-
+) {}

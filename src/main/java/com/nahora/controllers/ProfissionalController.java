@@ -1,6 +1,8 @@
 package com.nahora.controllers;
 
-import com.nahora.dto.request.CompletarPerfilRequestDTO;
+import com.nahora.dto.request.ProfissionalCategoriaRequest;
+import com.nahora.dto.request.ProfissionalDocumentosRequest;
+import com.nahora.dto.request.ProfissionalPerfilRequest;
 import com.nahora.dto.response.PerfilProfissionalResponseDTO;
 import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
@@ -27,25 +29,72 @@ public class ProfissionalController {
 
     private final ProfissionalService profissionalService;
 
+    @PostMapping("/categoria")
+    @Operation(summary = "A11 — Seleciona a categoria de serviço do profissional")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Categoria salva com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Categoria inválida"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado: não é profissional ou status inválido"),
+            @ApiResponse(responseCode = "404", description = "Profissional não encontrado")
+    })
+    public ResponseEntity<Void> selecionarCategoria(
+            @Valid @RequestBody ProfissionalCategoriaRequest dto,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        profissionalService.salvarCategoria(profissional(usuarioAutenticado).getId(), dto);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/documentos")
+    @Operation(summary = "A12 — Envia documentos de verificação de identidade")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Documentos enviados, status atualizado para AGUARDANDO_VERIFICACAO"),
+            @ApiResponse(responseCode = "400", description = "Campos obrigatórios ausentes"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado: não é profissional ou status inválido"),
+            @ApiResponse(responseCode = "404", description = "Profissional não encontrado")
+    })
+    public ResponseEntity<Void> enviarDocumentos(
+            @Valid @RequestBody ProfissionalDocumentosRequest dto,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        profissionalService.salvarDocumentos(profissional(usuarioAutenticado).getId(), dto);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/perfil")
+    @Operation(summary = "Retorna os dados atuais do perfil para pré-preenchimento")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Perfil retornado com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado: não é profissional"),
+            @ApiResponse(responseCode = "404", description = "Profissional não encontrado")
+    })
+    public ResponseEntity<PerfilProfissionalResponseDTO> getPerfil(
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        PerfilProfissionalResponseDTO response = profissionalService.getPerfil(profissional(usuarioAutenticado).getId());
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/perfil")
-    @Operation(summary = "Completa ou atualiza o perfil do profissional autenticado")
+    @Operation(summary = "A14–A16 — Cadastra ou edita o perfil do profissional verificado")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Perfil atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Campos inválidos ou portfólio com mais de 10 fotos"),
-            @ApiResponse(responseCode = "403", description = "Acesso negado: Usuário autenticado não é um profissional"),
-            @ApiResponse(responseCode = "404", description = "Profissional não encontrado no banco de dados")
+            @ApiResponse(responseCode = "403", description = "Acesso negado: não é profissional ou ainda não verificado"),
+            @ApiResponse(responseCode = "404", description = "Profissional não encontrado")
     })
-    public ResponseEntity<PerfilProfissionalResponseDTO> completarPerfil(
-            @Valid @RequestBody CompletarPerfilRequestDTO dto,
+    public ResponseEntity<PerfilProfissionalResponseDTO> atualizarPerfil(
+            @Valid @RequestBody ProfissionalPerfilRequest dto,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
 
-        if (!(usuarioAutenticado instanceof Profissional)) {
+        PerfilProfissionalResponseDTO response = profissionalService.atualizarPerfil(profissional(usuarioAutenticado).getId(), dto);
+        return ResponseEntity.ok(response);
+    }
+
+    private Profissional profissional(Usuario usuario) {
+        if (!(usuario instanceof Profissional p)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso restrito para profissionais.");
         }
-
-        // Extrai o ID direto do token 
-        PerfilProfissionalResponseDTO response = profissionalService.completarPerfil(usuarioAutenticado.getId(), dto);
-
-        return ResponseEntity.ok(response);
+        return p;
     }
 }

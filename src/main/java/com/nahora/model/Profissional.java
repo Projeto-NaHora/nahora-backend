@@ -79,6 +79,12 @@ public class Profissional extends Usuario {
     @CollectionTable(name = "profissional_portfolio", joinColumns = @JoinColumn(name = "profissional_id"))
     private List<String> portfolio;
 
+    @Column(name = "profissao")
+    private String profissao;
+
+    @Column(name = "cep", length = 10)
+    private String cep;
+
     @Column(name = "cidade")
     private String cidade;
 

@@ -8,7 +8,6 @@ import com.nahora.dto.response.AuthResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
-import com.nahora.model.enums.CategoriaServico;
 import com.nahora.repositories.ClienteRepository;
 import com.nahora.repositories.ProfissionalRepository;
 import com.nahora.repositories.UsuarioRepository;
@@ -26,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -123,23 +121,11 @@ class AuthServiceTest {
     void registerProfissional_Sucesso() {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
-                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA,
-                "12345678901",
-                List.of("Eletricista"),
-                "Faço muitas coisas",
-                5,
-                "Carpina",
-                "Pernambuco",
-                List.of("Chuveiro"),
-                "http://rg-frente.com",
-                "http://rg-verso.com",
-                "http://selfie.com"
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
         when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
-        when(profissionalRepository.existsByCpf("12345678901")).thenReturn(false);
         when(valueOperations.get("phone_verified:" + request.telefone())).thenReturn("true");
         when(passwordEncoder.encode(request.senha())).thenReturn("hash");
 
@@ -172,18 +158,7 @@ class AuthServiceTest {
     void registerProfissional_EmailJaEmUso() {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
-                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA,
-                "12345678901",
-                List.of("Eletricista"),
-                "Faço muitas coisas",
-                5,
-                "Recife",
-                "Pernambuco",
-                List.of("Marceneiro"),
-                "http://rg-frente.com",
-                "http://rg-verso.com",
-                "http://selfie.com"
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(true);
@@ -198,51 +173,11 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Deve bloquear registro de profissional se o CPF já estiver em uso")
-    void registerProfissional_CpfJaEmUso() {
-        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
-                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), "Faço muitas coisas",5,"Vitoria de Santo Antão","Pernambuco", List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
-        );
-
-        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
-        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
-        when(profissionalRepository.existsByCpf("12345678901")).thenReturn(true);
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> authService.registerProfissional(request));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertEquals("CPF já está em uso.", ex.getReason());
-        verify(profissionalRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Deve normalizar CPF com pontuação antes de verificar e salvar")
-    void registerProfissional_NormalizaCpfComPontuacao() {
-        RegisterProfissionalRequest request = new RegisterProfissionalRequest(
-                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "123.456.789-01", List.of("Eletricista"), "Faço muitas coisas",5, "Jabotaão", "Pernambuco",List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
-        );
-
-        when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
-        when(usuarioRepository.existsByTelefone(request.telefone())).thenReturn(false);
-        when(profissionalRepository.existsByCpf("12345678901")).thenReturn(true);
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> authService.registerProfissional(request));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        verify(profissionalRepository).existsByCpf("12345678901");
-    }
-
-    @Test
     @DisplayName("Deve bloquear registro de profissional se o telefone já estiver em uso")
     void registerProfissional_TelefoneJaEmUso() {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
-                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), "Faço muitas coisas",5, "Brumadinho", "Pernambuco",List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
@@ -262,8 +197,7 @@ class AuthServiceTest {
     void registerProfissional_TelefoneNaoVerificado() {
         // Arrange
         RegisterProfissionalRequest request = new RegisterProfissionalRequest(
-                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123",
-                CategoriaServico.ELETRICA, "12345678901", List.of("Eletricista"), "Faço muitas coisas",5, "Limoeiro", "Pernambico",List.of("Recife"), "http://rg-frente.com", "http://rg-verso.com", "http://selfie.com"
+                "Carlos Profissional", "carlos@email.com", "81988888888", "SenhaForte123"
         );
 
         when(usuarioRepository.existsByEmail(request.email())).thenReturn(false);
