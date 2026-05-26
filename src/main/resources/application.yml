@@ -59,6 +59,9 @@ storage:
   secret-key: ${STORAGE_SECRET_KEY:dev12345}
   endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
 
+admin:
+  password: ${ADMIN_PASSWORD:admin}
+
 twilio:
   account-sid: ${TWILIO_ACCOUNT_SID:}
   auth-token: ${TWILIO_AUTH_TOKEN:}
