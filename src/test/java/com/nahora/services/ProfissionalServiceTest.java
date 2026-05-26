@@ -1,6 +1,7 @@
 package com.nahora.services;
 
 import com.nahora.dto.request.ProfissionalPerfilRequest;
+import com.nahora.dto.response.AdminProfissionalPendenteDTO;
 import com.nahora.dto.response.PerfilProfissionalResponseDTO;
 import com.nahora.model.Profissional;
 import com.nahora.model.enums.CategoriaServico;
@@ -12,14 +13,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -112,5 +119,54 @@ class ProfissionalServiceTest {
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
         verify(profissionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("listarPendentes — deve retornar página de DTOs mapeados a partir de AGUARDANDO_VERIFICACAO")
+    void listarPendentes_Sucesso() {
+        Profissional profissional = new Profissional();
+        profissional.setId(10L);
+        profissional.setNome("Ana Lima");
+        profissional.setTelefone("81999990000");
+        profissional.setEmail("ana@email.com");
+        profissional.setRgFrenteUrl("url-rg-frente");
+        profissional.setRgVersoUrl("url-rg-verso");
+        profissional.setSelfieUrl("url-selfie");
+        profissional.setCriadoEm(LocalDateTime.of(2026, 1, 10, 12, 0));
+        profissional.setStatusVerificacao(StatusVerificacao.AGUARDANDO_VERIFICACAO);
+
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Profissional> pageResult = new PageImpl<>(List.of(profissional), pageable, 1);
+
+        when(profissionalRepository.findByStatusVerificacao(eq(StatusVerificacao.AGUARDANDO_VERIFICACAO), eq(pageable)))
+                .thenReturn(pageResult);
+
+        Page<AdminProfissionalPendenteDTO> result = profissionalService.listarPendentes(pageable);
+
+        assertEquals(1, result.getTotalElements());
+        AdminProfissionalPendenteDTO dto = result.getContent().get(0);
+        assertEquals(10L, dto.id());
+        assertEquals("Ana Lima", dto.nome());
+        assertEquals("81999990000", dto.telefone());
+        assertEquals("ana@email.com", dto.email());
+        assertEquals("url-rg-frente", dto.rgFrente());
+        assertEquals("url-rg-verso", dto.rgVerso());
+        assertEquals("url-selfie", dto.selfieComDocumento());
+        assertEquals(LocalDateTime.of(2026, 1, 10, 12, 0), dto.criadoEm());
+
+        verify(profissionalRepository).findByStatusVerificacao(StatusVerificacao.AGUARDANDO_VERIFICACAO, pageable);
+    }
+
+    @Test
+    @DisplayName("listarPendentes — deve retornar página vazia quando não há profissionais aguardando")
+    void listarPendentes_Vazio() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(profissionalRepository.findByStatusVerificacao(eq(StatusVerificacao.AGUARDANDO_VERIFICACAO), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        Page<AdminProfissionalPendenteDTO> result = profissionalService.listarPendentes(pageable);
+
+        assertTrue(result.isEmpty());
+        verify(profissionalRepository).findByStatusVerificacao(StatusVerificacao.AGUARDANDO_VERIFICACAO, pageable);
     }
 }

@@ -3,6 +3,7 @@ package com.nahora.services;
 import com.nahora.dto.request.ProfissionalCategoriaRequest;
 import com.nahora.dto.request.ProfissionalDocumentosRequest;
 import com.nahora.dto.request.ProfissionalPerfilRequest;
+import com.nahora.dto.response.AdminProfissionalPendenteDTO;
 import com.nahora.dto.response.PerfilProfissionalResponseDTO;
 import com.nahora.model.Profissional;
 import com.nahora.model.enums.StatusVerificacao;
@@ -12,6 +13,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +93,13 @@ public class ProfissionalService {
         return toResponseDTO(profissional);
     }
 
+    @Transactional(readOnly = true)
+    public Page<AdminProfissionalPendenteDTO> listarPendentes(Pageable pageable) {
+        return profissionalRepository
+                .findByStatusVerificacao(StatusVerificacao.AGUARDANDO_VERIFICACAO, pageable)
+                .map(this::toPendenteDTO);
+    }
+
     @Transactional
     public void aprovarProfissional(Long id, boolean aprovado) {
         Profissional profissional = findOrThrow(id);
@@ -119,6 +129,19 @@ public class ProfissionalService {
         if (profissional.getStatusVerificacao() != esperado) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, mensagem);
         }
+    }
+
+    private AdminProfissionalPendenteDTO toPendenteDTO(Profissional p) {
+        return new AdminProfissionalPendenteDTO(
+                p.getId(),
+                p.getNome(),
+                p.getTelefone(),
+                p.getEmail(),
+                p.getRgFrenteUrl(),
+                p.getRgVersoUrl(),
+                p.getSelfieUrl(),
+                p.getCriadoEm()
+        );
     }
 
     private PerfilProfissionalResponseDTO toResponseDTO(Profissional p) {

@@ -1,5 +1,6 @@
 package com.nahora.security;
 
+import com.nahora.model.Admin;
 import com.nahora.model.Profissional;
 import com.nahora.repositories.UsuarioRepository;
 import com.nahora.services.JwtService;
@@ -47,7 +48,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     usuarioRepository.findByEmail(email).ifPresent(usuario -> {
                         if (Boolean.TRUE.equals(usuario.getAtivo())) {
-                            String role = usuario instanceof Profissional ? "ROLE_PROFISSIONAL" : "ROLE_CLIENTE";
+                            String role = usuario instanceof Admin ? "ROLE_ADMIN"
+                                    : usuario instanceof Profissional ? "ROLE_PROFISSIONAL"
+                                    : "ROLE_CLIENTE";
                             UsernamePasswordAuthenticationToken authToken =
                                     new UsernamePasswordAuthenticationToken(usuario, null, List.of(new SimpleGrantedAuthority(role)));
                             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

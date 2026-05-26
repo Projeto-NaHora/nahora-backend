@@ -1,5 +1,6 @@
 package com.nahora.services;
 
+import com.nahora.model.Admin;
 import com.nahora.model.Cliente;
 import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
@@ -38,7 +39,7 @@ public class JwtService {
     }
 
     public String generateAccessToken(Usuario user) {
-        TipoUsuario tipo = user instanceof Profissional ? TipoUsuario.PROFISSIONAL : TipoUsuario.CLIENTE;
+        TipoUsuario tipo = resolverTipo(user);
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("id", user.getId())
@@ -51,7 +52,13 @@ public class JwtService {
     }
 
     public TipoUsuario extractTipoUsuario(Usuario user) {
-        return user instanceof Profissional ? TipoUsuario.PROFISSIONAL : TipoUsuario.CLIENTE;
+        return resolverTipo(user);
+    }
+
+    private TipoUsuario resolverTipo(Usuario user) {
+        if (user instanceof Admin) return TipoUsuario.ADMIN;
+        if (user instanceof Profissional) return TipoUsuario.PROFISSIONAL;
+        return TipoUsuario.CLIENTE;
     }
 
     public String extractEmail(String token) {
