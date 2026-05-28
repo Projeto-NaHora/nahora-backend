@@ -48,6 +48,7 @@ class ProfissionalServiceTest {
         Long profissionalId = 1L;
         ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
                 null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
                 5,
                 "Sou um ótimo eletricista",
                 List.of("Instalação Residencial"),
@@ -87,7 +88,9 @@ class ProfissionalServiceTest {
 
         Long profissionalId = 2L;
         ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
-                null, null, null, null, null, null, null, null, "Bio", null, null, null, null, null, null
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                null, "Bio", null, null, null, null, null, null
         );
 
         Profissional profissionalMock = new Profissional();
@@ -109,7 +112,9 @@ class ProfissionalServiceTest {
 
         Long profissionalId = 99L;
         ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
-                null, null, null, null, null, null, null, null, "Bio", null, null, null, null, null, null
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                null, "Bio", null, null, null, null, null, null
         );
 
         when(profissionalRepository.findById(profissionalId)).thenReturn(Optional.empty());

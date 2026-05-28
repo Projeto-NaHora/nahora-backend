@@ -37,11 +37,14 @@ class ProfissionalControllerTest {
         profissionalLogado.setStatusVerificacao(StatusVerificacao.VERIFICADO);
 
         ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
-                null, null, null, null, null, null, null, 5, "Bio", null, null, 10.0, null, null, null
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                5, "Bio", null, null, 10.0, null, null, null
         );
 
         PerfilProfissionalResponseDTO responseMock = new PerfilProfissionalResponseDTO(
-                1L, "Nome", null, null, null, "Bio", null, null, 5, 10.0, 0.0, 0, 0, null, false, null
+                1L, "Nome", null, null, null, null, null, null, null, null, null, "Bio",
+                null, null, 5, 10.0, 0.0, 0, 0, null, false, null
         );
 
         when(profissionalService.atualizarPerfil(1L, request)).thenReturn(responseMock);
@@ -61,7 +64,9 @@ class ProfissionalControllerTest {
         clienteLogado.setId(2L);
 
         ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
-                null, null, null, null, null, null, null, 5, "Bio", null, null, 10.0, null, null, null
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                5, "Bio", null, null, 10.0, null, null, null
         );
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
