@@ -71,8 +71,14 @@ public class ProfissionalService {
         if (dto.celular() != null)    profissional.setTelefone(dto.celular());
         if (dto.fotoPerfil() != null) profissional.setFoto(dto.fotoPerfil());
         if (dto.profissao() != null)  profissional.setProfissao(dto.profissao());
-        if (dto.cep() != null)        profissional.setCep(dto.cep());
-        if (dto.bio() != null)        profissional.setBio(dto.bio());
+        if (dto.cep() != null)         profissional.setCep(dto.cep());
+        if (dto.logradouro() != null)  profissional.setLogradouro(dto.logradouro());
+        if (dto.numero() != null)      profissional.setNumero(dto.numero());
+        if (dto.complemento() != null) profissional.setComplemento(dto.complemento());
+        if (dto.bairro() != null)      profissional.setBairro(dto.bairro());
+        if (dto.cidade() != null)      profissional.setCidade(dto.cidade());
+        if (dto.estado() != null)      profissional.setEstado(dto.estado());
+        if (dto.bio() != null)         profissional.setBio(dto.bio());
         if (dto.especialidades() != null)    profissional.setEspecialidades(dto.especialidades());
         if (dto.categorias() != null)        profissional.setCategoriasAtendidas(dto.categorias());
         if (dto.anosExperiencia() != null)   profissional.setAnosExperiencia(dto.anosExperiencia());
@@ -151,6 +157,12 @@ public class ProfissionalService {
                 p.getFoto(),
                 p.getProfissao(),
                 p.getCep(),
+                p.getLogradouro(),
+                p.getNumero(),
+                p.getComplemento(),
+                p.getBairro(),
+                p.getCidade(),
+                p.getEstado(),
                 p.getBio(),
                 p.getCategoriasAtendidas() != null ? new java.util.ArrayList<>(p.getCategoriasAtendidas()) : null,
                 p.getEspecialidades() != null ? new java.util.ArrayList<>(p.getEspecialidades()) : null,

@@ -15,6 +15,12 @@ public record ProfissionalPerfilRequest(
         String fotoPerfil,
         String profissao,
         String cep,
+        String logradouro,
+        String numero,
+        String complemento,
+        String bairro,
+        String cidade,
+        String estado,
 
         @Min(value = 0, message = "Os anos de experiência não podem ser negativos.")
         Integer anosExperiencia,

@@ -85,6 +85,18 @@ public class Profissional extends Usuario {
     @Column(name = "cep", length = 10)
     private String cep;
 
+    @Column(name = "logradouro")
+    private String logradouro;
+
+    @Column(name = "numero", length = 50)
+    private String numero;
+
+    @Column(name = "complemento")
+    private String complemento;
+
+    @Column(name = "bairro")
+    private String bairro;
+
     @Column(name = "cidade")
     private String cidade;
 
