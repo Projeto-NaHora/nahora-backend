@@ -1,6 +1,7 @@
 package com.nahora.controllers;
 
 import com.nahora.dto.request.CadastroEmailRequest;
+import com.nahora.dto.request.RefreshTokenRequest;
 import com.nahora.dto.request.CadastroNomeRequest;
 import com.nahora.dto.request.CadastroSenhaRequest;
 import com.nahora.dto.request.ForgotPasswordRequest;
@@ -81,6 +82,12 @@ public class AuthController {
     @Operation(summary = "Autentica usuário por e-mail ou telefone e retorna tokens JWT")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Renova o access token usando um refresh token válido")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.refreshToken()));
     }
 
     @PostMapping("/forgot-password")

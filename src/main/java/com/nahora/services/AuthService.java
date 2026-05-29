@@ -160,7 +160,7 @@ public class AuthService {
 
         redisTemplate.delete(otpKey);
         redisTemplate.delete("pwd_reset_attempts:" + identificador);
-        redisTemplate.delete("refresh_token:" + usuario.getEmail());
+        jwtService.deleteRefreshToken(usuario.getEmail());
     }
 
     private Optional<Usuario> findByEmailOrPhone(String identificador) {
@@ -236,6 +236,27 @@ public class AuthService {
         String refreshToken = jwtService.generateRefreshToken(profissional);
 
         return new AuthResponse(accessToken, refreshToken, jwtService.extractTipoUsuario(profissional));
+    }
+
+    public AuthResponse refreshToken(String refreshToken) {
+        String email = jwtService.validateRefreshToken(refreshToken);
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token inválido ou expirado.");
+        }
+
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado."));
+
+        if (!Boolean.TRUE.equals(usuario.getAtivo())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Conta desativada.");
+        }
+
+        String newRefreshToken = jwtService.generateRefreshToken(usuario);
+        return new AuthResponse(
+                jwtService.generateAccessToken(usuario),
+                newRefreshToken,
+                jwtService.extractTipoUsuario(usuario)
+        );
     }
 
     public void salvarEmail(String telefone, String email) {

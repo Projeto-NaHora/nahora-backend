@@ -83,12 +83,28 @@ public class JwtService {
     }
 
     public String generateRefreshToken(Usuario user) {
-        String refreshToken = UUID.randomUUID().toString();
-        String redisKey = "refresh_token:" + user.getEmail();
+        String token = UUID.randomUUID().toString();
 
-        // Salva o Refresh Token no Redis com o TTL configurado
-        redisTemplate.opsForValue().set(redisKey, refreshToken, refreshExpirationMs, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForValue().set("refresh_token:" + user.getEmail(), token, refreshExpirationMs, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForValue().set("refresh_token_lookup:" + token, user.getEmail(), refreshExpirationMs, TimeUnit.MILLISECONDS);
 
-        return refreshToken;
+        return token;
+    }
+
+    /** Valida o token e retorna o e-mail do dono, ou null se inválido/expirado. */
+    public String validateRefreshToken(String token) {
+        String email = redisTemplate.opsForValue().get("refresh_token_lookup:" + token);
+        if (email == null) return null;
+
+        String stored = redisTemplate.opsForValue().get("refresh_token:" + email);
+        return token.equals(stored) ? email : null;
+    }
+
+    public void deleteRefreshToken(String email) {
+        String token = redisTemplate.opsForValue().get("refresh_token:" + email);
+        if (token != null) {
+            redisTemplate.delete("refresh_token_lookup:" + token);
+        }
+        redisTemplate.delete("refresh_token:" + email);
     }
 }
