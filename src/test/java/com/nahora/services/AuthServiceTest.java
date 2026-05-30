@@ -361,7 +361,8 @@ class AuthServiceTest {
 
         verify(usuarioRepository).save(cliente);
         verify(redisTemplate).delete("pwd_reset_otp:joao@email.com");
-        verify(redisTemplate).delete("refresh_token:joao@email.com");
+        verify(redisTemplate).delete("pwd_reset_attempts:joao@email.com");
+        verify(jwtService).deleteRefreshToken("joao@email.com");
     }
 
     @Test
