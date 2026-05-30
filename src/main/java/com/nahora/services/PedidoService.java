@@ -1,5 +1,6 @@
 package com.nahora.services;
 
+import com.nahora.dto.request.PedidoEditarRequest;
 import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoDistanceRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
@@ -416,7 +417,7 @@ public class PedidoService {
     }
 
     @Transactional
-    public PedidoResponse atualizarPedido(Long pedidoId, Long clienteId, PedidoRequest request) {
+    public PedidoResponse atualizarPedido(Long pedidoId, Long clienteId, PedidoEditarRequest request) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
 
@@ -429,61 +430,28 @@ public class PedidoService {
                     "Apenas pedidos com status ABERTO podem ser editados");
         }
 
-        pedido.setCategoria(request.getCategoria());
-        pedido.setDescricao(request.getDescricao().trim());
-        pedido.setUrgencia(request.getUrgencia());
-        pedido.setOrcamentoEstimado(request.getOrcamentoEstimado());
-        pedido.setDataDesejada(request.getDataDesejada());
-        pedido.setFotos(request.getFotos() != null ? request.getFotos() : List.of());
-
-        Endereco endereco;
-        if (request.getEnderecoSalvoIndex() != null) {
-            List<Endereco> enderecosSalvos = pedido.getCliente().getEnderecosSalvos();
-            int index = request.getEnderecoSalvoIndex();
-            if (index < 0 || index >= enderecosSalvos.size()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Índice de endereço salvo inválido. Cliente tem " + enderecosSalvos.size() + " endereço(s).");
-            }
-            Endereco original = enderecosSalvos.get(index);
-            endereco = new Endereco();
-            endereco.setLogradouro(original.getLogradouro());
-            endereco.setNumero(original.getNumero());
-            endereco.setComplemento(original.getComplemento());
-            endereco.setBairro(original.getBairro());
-            endereco.setCidade(original.getCidade());
-            endereco.setEstado(original.getEstado());
-            endereco.setCep(original.getCep());
-            if (original.getCoordenadas() != null) {
-                Point point = geometryFactory.createPoint(original.getCoordenadas().getCoordinate());
-                point.setSRID(4326);
-                endereco.setCoordenadas(point);
-            }
-        } else {
-            if (request.getEndereco() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "É necessário informar o endereço (novo ou índice de endereço salvo).");
-            }
-            endereco = new Endereco();
-            endereco.setLogradouro(request.getEndereco().getLogradouro());
-            endereco.setNumero(request.getEndereco().getNumero());
-            endereco.setComplemento(request.getEndereco().getComplemento());
-            endereco.setBairro(request.getEndereco().getBairro());
-            endereco.setCidade(request.getEndereco().getCidade());
-            endereco.setEstado(request.getEndereco().getEstado());
-            endereco.setCep(request.getEndereco().getCep());
-
-            Double lat = request.getEndereco().getLatitude();
-            Double lng = request.getEndereco().getLongitude();
-            if (lat != null && lng != null) {
-                Point point = geometryFactory.createPoint(new Coordinate(lng, lat));
-                point.setSRID(4326);
-                endereco.setCoordenadas(point);
-            }
+        pedido.setDescricao(request.descricao().trim());
+        if (request.dataDesejada() != null) {
+            pedido.setDataDesejada(request.dataDesejada());
         }
-        pedido.setEndereco(endereco);
+        pedido.setFotos(request.fotos() != null ? request.fotos() : List.of());
 
-        pedidoRepository.save(pedido);
-        return toResponseDTO(pedido);
+        Pedido pedidoSalvo = pedidoRepository.save(pedido);
+
+        List<Proposta> propostasAtivas = propostaRepository.findByPedidoIdAndStatus(pedidoId, StatusProposta.ATIVA);
+
+        propostasAtivas.forEach(proposta -> {
+            Profissional prof = proposta.getProfissional();
+            if (prof != null && prof.getTokenFcm() != null && !prof.getTokenFcm().isBlank()) {
+                pushNotificationService.enviarNotificacao(
+                        prof.getTokenFcm(),
+                        "Pedido Editado",
+                        "O pedido que você recebeu proposta foi editado."
+                );
+            }
+        });
+
+        return toResponseDTO(pedidoSalvo);
     }
 
     private PropostaResponseDTO mapToPropostaResponseDTO(Proposta proposta) {
