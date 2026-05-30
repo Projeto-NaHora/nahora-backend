@@ -25,12 +25,12 @@ public class FileUploadController {
     private final StorageService storageService;
 
     @Operation(summary = "Faz upload de um documento do profissional",
-               description = "Tipos aceitos: RG_FRENTE, RG_VERSO, SELFIE, PEDIDO, PORTIFOLIO. Retorna a URL pública do arquivo.")
+               description = "Tipos aceitos: RG_FRENTE, RG_VERSO, SELFIE, PEDIDO, PORTIFOLIO, PERFIL. Retorna a URL pública do arquivo.")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UploadResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("tipo")
-            @Pattern(regexp = "RG_FRENTE|RG_VERSO|SELFIE|PEDIDO|PORTIFOLIO", message = "tipo deve ser RG_FRENTE, RG_VERSO, SELFIE, PEDIDO ou PORTIFOLIO")
+            @Pattern(regexp = "RG_FRENTE|RG_VERSO|SELFIE|PEDIDO|PORTIFOLIO|PERFIL", message = "tipo deve ser RG_FRENTE, RG_VERSO, SELFIE, PEDIDO, PORTIFOLIO ou PERFIL")
             String tipo
     ) {
         String url = storageService.uploadDocumento(file, tipo);

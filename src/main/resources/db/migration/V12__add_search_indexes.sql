@@ -27,9 +27,6 @@ ALTER TABLE profissional
 CREATE INDEX IF NOT EXISTS idx_profissional_perfil_completo
     ON profissional (perfil_completo);
 
-CREATE INDEX IF NOT EXISTS idx_profissional_nota_media
-    ON profissional (nota_media);
-
 CREATE INDEX IF NOT EXISTS idx_usuario_ativo
     ON usuario (ativo);
 

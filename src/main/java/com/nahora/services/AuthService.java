@@ -5,6 +5,9 @@ import com.nahora.dto.request.LoginRequest;
 import com.nahora.dto.request.RegisterClienteRequest;
 import com.nahora.dto.request.RegisterProfissionalRequest;
 import com.nahora.dto.request.ResetPasswordRequest;
+import com.nahora.dto.request.CadastroEmailRequest;
+import com.nahora.dto.request.CadastroNomeRequest;
+import com.nahora.dto.request.CadastroSenhaRequest;
 import com.nahora.dto.response.AuthResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Profissional;
@@ -24,7 +27,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.security.SecureRandom;
 import java.util.Optional;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -158,7 +160,7 @@ public class AuthService {
 
         redisTemplate.delete(otpKey);
         redisTemplate.delete("pwd_reset_attempts:" + identificador);
-        redisTemplate.delete("refresh_token:" + usuario.getEmail());
+        jwtService.deleteRefreshToken(usuario.getEmail());
     }
 
     private Optional<Usuario> findByEmailOrPhone(String identificador) {
@@ -202,54 +204,29 @@ public class AuthService {
     }
     @Transactional
     public AuthResponse registerProfissional(RegisterProfissionalRequest request) {
-        
+
         if (usuarioRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já está em uso.");
         }
-        
-        
-        if(usuarioRepository.existsByTelefone(request.telefone())) {
+
+        if (usuarioRepository.existsByTelefone(request.telefone())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Telefone já está em uso.");
         }
 
-        String cpf = request.cpf().replaceAll("[^0-9]", "");
-        if (profissionalRepository.existsByCpf(cpf)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "CPF já está em uso.");
-        }
-
-         // Verifica se o telefone passou pela validação de OTP
         String verifiedStatus = redisTemplate.opsForValue().get("phone_verified:" + request.telefone());
         if (!"true".equals(verifiedStatus)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Telefone não verificado ou verificação expirou.");
         }
 
-        // Limpa a verificação do redis para evitar reuso imediato na mesma sessão
         redisTemplate.delete("phone_verified:" + request.telefone());
 
-
-        
         Profissional profissional = new Profissional();
         profissional.setNome(request.nome());
         profissional.setEmail(request.email());
         profissional.setTelefone(request.telefone());
         profissional.setSenha(passwordEncoder.encode(request.senha()));
         profissional.setAtivo(true);
-    
-        // especificos de profissional
-        profissional.setCpf(cpf);
-        profissional.setCidade(request.cidade());
-        profissional.setEstado(request.estado());
-        profissional.setAreaAtuacao(request.areaAtuacao());
-        profissional.setEspecialidades(request.especialidades());
-        profissional.setDescricaoEspecialidades(request.descricaoEspecialidades());
-        profissional.setAnosExperiencia(request.anosExperiencia());
-        profissional.setCategoriasAtendidas(List.of(request.categoriaServico()));
-        profissional.setRgFrenteUrl(request.rgFrenteUrl());
-        profissional.setRgVersoUrl(request.rgVersoUrl());
-        profissional.setSelfieUrl(request.selfieUrl());
-
-        // o profissional vai ter os documentos enviados, mas ainda não verificados
-        profissional.setStatusVerificacao(StatusVerificacao.PENDENTE);
+        profissional.setStatusVerificacao(StatusVerificacao.CADASTRO_INCOMPLETO);
         profissional.setDisponivel(false);
         profissional.setPerfilCompleto(false);
 
@@ -259,8 +236,93 @@ public class AuthService {
         String refreshToken = jwtService.generateRefreshToken(profissional);
 
         return new AuthResponse(accessToken, refreshToken, jwtService.extractTipoUsuario(profissional));
+    }
 
+    public AuthResponse refreshToken(String refreshToken) {
+        String email = jwtService.validateRefreshToken(refreshToken);
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token inválido ou expirado.");
+        }
 
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado."));
+
+        if (!Boolean.TRUE.equals(usuario.getAtivo())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Conta desativada.");
+        }
+
+        String newRefreshToken = jwtService.generateRefreshToken(usuario);
+        return new AuthResponse(
+                jwtService.generateAccessToken(usuario),
+                newRefreshToken,
+                jwtService.extractTipoUsuario(usuario)
+        );
+    }
+
+    public void salvarEmail(String telefone, String email) {
+        requirePhoneVerified(telefone);
+        redisTemplate.opsForValue().set("cadastro_email:" + telefone, email, 30, TimeUnit.MINUTES);
+    }
+
+    public void salvarNome(String telefone, String nome, String sobrenome) {
+        requirePhoneVerified(telefone);
+        String nomeCompleto = nome + " " + sobrenome;
+        redisTemplate.opsForValue().set("cadastro_nome:" + telefone, nomeCompleto, 30, TimeUnit.MINUTES);
+    }
+
+    @Transactional
+    public AuthResponse finalizarCadastro(String telefone, String senha, String confirmacaoSenha) {
+        requirePhoneVerified(telefone);
+
+        if (!senha.equals(confirmacaoSenha)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "As senhas não coincidem.");
+        }
+
+        String email = redisTemplate.opsForValue().get("cadastro_email:" + telefone);
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "E-mail não informado. Complete a etapa anterior.");
+        }
+
+        String nome = redisTemplate.opsForValue().get("cadastro_nome:" + telefone);
+        if (nome == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome não informado. Complete a etapa anterior.");
+        }
+
+        if (usuarioRepository.existsByEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já está em uso.");
+        }
+
+        if (usuarioRepository.existsByTelefone(telefone)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Telefone já está em uso.");
+        }
+
+        Profissional profissional = new Profissional();
+        profissional.setNome(nome);
+        profissional.setEmail(email);
+        profissional.setTelefone(telefone);
+        profissional.setSenha(passwordEncoder.encode(senha));
+        profissional.setAtivo(true);
+        profissional.setStatusVerificacao(StatusVerificacao.CADASTRO_INCOMPLETO);
+        profissional.setDisponivel(false);
+        profissional.setPerfilCompleto(false);
+
+        profissional = profissionalRepository.save(profissional);
+
+        redisTemplate.delete("phone_verified:" + telefone);
+        redisTemplate.delete("cadastro_email:" + telefone);
+        redisTemplate.delete("cadastro_nome:" + telefone);
+
+        String accessToken = jwtService.generateAccessToken(profissional);
+        String refreshToken = jwtService.generateRefreshToken(profissional);
+
+        return new AuthResponse(accessToken, refreshToken, jwtService.extractTipoUsuario(profissional));
+    }
+
+    private void requirePhoneVerified(String telefone) {
+        String verified = redisTemplate.opsForValue().get("phone_verified:" + telefone);
+        if (!"true".equals(verified)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Telefone não verificado ou verificação expirou.");
+        }
     }
 
 }

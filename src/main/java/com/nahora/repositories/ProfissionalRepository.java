@@ -2,6 +2,7 @@ package com.nahora.repositories;
 
 import com.nahora.model.Profissional;
 import com.nahora.model.enums.CategoriaServico;
+import com.nahora.model.enums.StatusVerificacao;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,8 @@ import java.util.Optional;
 public interface ProfissionalRepository extends JpaRepository<Profissional, Long> {
 
     boolean existsByCpf(String cpf);
+
+    Page<Profissional> findByStatusVerificacao(StatusVerificacao status, Pageable pageable);
     Optional<Profissional> findByEmail(String email);
 
     List<Profissional> findByCategoriasAtendidasAndAtivoTrueAndPerfilCompletoTrue(CategoriaServico categoria);

@@ -1,9 +1,10 @@
 package com.nahora.controllers;
 
-import com.nahora.dto.request.CompletarPerfilRequestDTO;
+import com.nahora.dto.request.ProfissionalPerfilRequest;
 import com.nahora.dto.response.PerfilProfissionalResponseDTO;
 import com.nahora.model.Cliente;
 import com.nahora.model.Profissional;
+import com.nahora.model.enums.StatusVerificacao;
 import com.nahora.services.ProfissionalService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,8 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -31,47 +30,51 @@ class ProfissionalControllerTest {
 
     @Test
     @DisplayName("Deve retornar 200 OK quando o usuário logado for um Profissional")
-    void completarPerfil_AcessoPermitido() {
-        
+    void atualizarPerfil_AcessoPermitido() {
+
         Profissional profissionalLogado = new Profissional();
         profissionalLogado.setId(1L);
+        profissionalLogado.setStatusVerificacao(StatusVerificacao.VERIFICADO);
 
-        CompletarPerfilRequestDTO request = new CompletarPerfilRequestDTO(
-                "Bio", List.of(), List.of(), 5, 10.0, 0.0, 0.0, List.of()
+        ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                5, "Bio", null, null, 10.0, null, null, null
         );
 
         PerfilProfissionalResponseDTO responseMock = new PerfilProfissionalResponseDTO(
-                1L, "Nome", null, "Bio", null, null, 5, 10.0, 0.0, 0, 0, null, false, null
+                1L, "Nome", null, null, null, null, null, null, null, null, null, "Bio",
+                null, null, 5, 10.0, 0.0, 0, 0, null, false, null
         );
 
-        when(profissionalService.completarPerfil(1L, request)).thenReturn(responseMock);
+        when(profissionalService.atualizarPerfil(1L, request)).thenReturn(responseMock);
 
-        ResponseEntity<PerfilProfissionalResponseDTO> response = profissionalController.completarPerfil(request, profissionalLogado);
+        ResponseEntity<PerfilProfissionalResponseDTO> response = profissionalController.atualizarPerfil(request, profissionalLogado);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Bio", response.getBody().bio());
-        verify(profissionalService).completarPerfil(1L, request);
+        verify(profissionalService).atualizarPerfil(1L, request);
     }
 
     @Test
     @DisplayName("Deve retornar 403 Forbidden quando o usuário logado for um Cliente")
-    void completarPerfil_AcessoNegado() {
-    
+    void atualizarPerfil_AcessoNegado() {
+
         Cliente clienteLogado = new Cliente();
         clienteLogado.setId(2L);
 
-        CompletarPerfilRequestDTO request = new CompletarPerfilRequestDTO(
-                "Bio", List.of(), List.of(), 5, 10.0, 0.0, 0.0, List.of()
+        ProfissionalPerfilRequest request = new ProfissionalPerfilRequest(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null,
+                5, "Bio", null, null, 10.0, null, null, null
         );
 
-        // Act & Assert
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, 
-                () -> profissionalController.completarPerfil(request, clienteLogado));
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> profissionalController.atualizarPerfil(request, clienteLogado));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
         assertEquals("Acesso restrito para profissionais.", exception.getReason());
-        
-        // Garante que o Service nunca foi chamado
-        verify(profissionalService, never()).completarPerfil(anyLong(), any());
+
+        verify(profissionalService, never()).atualizarPerfil(anyLong(), any());
     }
 }
