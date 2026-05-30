@@ -16,11 +16,4 @@ public class Cliente extends Usuario {
     @CollectionTable(name = "cliente_enderecos", joinColumns = @JoinColumn(name = "cliente_id"))
     private List<Endereco> enderecosSalvos = new ArrayList<>();
 
-    @ManyToMany
-    @JoinTable(
-            name = "cliente_favoritos",
-            joinColumns = @JoinColumn(name = "cliente_id"),
-            inverseJoinColumns = @JoinColumn(name = "profissional_id")
-    )
-    private List<Profissional> profissionaisFavoritos = new ArrayList<>();
 }
