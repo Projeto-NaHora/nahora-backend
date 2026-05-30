@@ -8,7 +8,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 
 public interface PedidoRepository extends
         JpaRepository<Pedido, Long>,
@@ -22,4 +24,6 @@ public interface PedidoRepository extends
     Page<Pedido> findByClienteIdAndStatus(Long clienteId, StatusPedido status, Pageable pageable);
 
     Page<Pedido> findByClienteIdAndStatusIn(Long clienteId, Collection<StatusPedido> status, Pageable pageable);
+
+    List<Pedido> findByStatusAndConcluidoEmLessThanEqual(StatusPedido status, LocalDateTime prazo);
 }
