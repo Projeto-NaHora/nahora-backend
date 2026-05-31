@@ -61,6 +61,15 @@ public class Pedido {
     @Column(name = "data_desejada")
     private LocalDateTime dataDesejada;
 
+    @Column(name = "concluido_em")
+    private LocalDateTime concluidoEm;
+
+    @Column(name = "foto_conclusao_url", length = 512)
+    private String fotoConclusaoUrl;
+
+    @Column(name = "auto_confirmado", nullable = false)
+    private Boolean autoConfirmado = false;
+
     @Transient
     public Boolean getUrgente() {
         return this.urgencia == Urgencia.URGENTE;

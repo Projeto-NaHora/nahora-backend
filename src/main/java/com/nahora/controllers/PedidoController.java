@@ -1,6 +1,8 @@
 package com.nahora.controllers;
 
 import com.nahora.dto.request.PedidoEditarRequest;
+import com.nahora.dto.request.ConclusaoRequestDTO;
+import com.nahora.dto.response.ConfirmacaoResponseDTO;
 import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoFiltroRequest;
 import com.nahora.dto.request.PedidoRequest;
@@ -9,6 +11,7 @@ import com.nahora.dto.response.PedidoResumoResponse;
 import com.nahora.dto.response.PedidoPublicoResponse;
 import com.nahora.model.Cliente;
 import com.nahora.model.Pedido;
+import com.nahora.model.Profissional;
 import com.nahora.model.Usuario;
 import com.nahora.model.enums.StatusPedido;
 import com.nahora.services.PedidoService;
@@ -190,6 +193,76 @@ public class PedidoController {
 
         AceitarPropostaResponseDTO response = pedidoService.aceitarProposta(pedidoId, propostaId, clienteAutenticado.getId());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{pedidoId}/concluir")
+    @Operation(summary = "Marca pedido como concluído pelo profissional (UC-10)",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pedido marcado como concluído"),
+            @ApiResponse(responseCode = "403", description = "Usuário não é o profissional atribuído"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(responseCode = "422", description = "Pedido não está EM_ANDAMENTO")
+    })
+    public ResponseEntity<ConfirmacaoResponseDTO> concluirPedido(
+            @PathVariable Long pedidoId,
+            @RequestBody(required = false) ConclusaoRequestDTO dto,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        if (!(usuarioAutenticado instanceof Profissional profissional)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas profissionais podem concluir pedidos.");
+        }
+        return ResponseEntity.ok(pedidoService.marcarComoConcluido(pedidoId, profissional.getId(), dto));
+    }
+
+    @PostMapping("/{pedidoId}/confirmar-conclusao")
+    @Operation(summary = "Cliente confirma a conclusão do serviço (UC-10)",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Conclusão confirmada, pagamento liberado"),
+            @ApiResponse(responseCode = "403", description = "Usuário não é o cliente do pedido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(responseCode = "422", description = "Pedido não está AGUARDANDO_VALIDACAO")
+    })
+    public ResponseEntity<ConfirmacaoResponseDTO> confirmarConclusao(
+            @PathVariable Long pedidoId,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        if (!(usuarioAutenticado instanceof Cliente cliente)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem confirmar a conclusão.");
+        }
+        return ResponseEntity.ok(pedidoService.confirmarConclusao(pedidoId, cliente.getId(), false));
+    }
+
+    @PostMapping("/{pedidoId}/reportar-problema")
+    @Operation(summary = "Cliente contesta a conclusão e abre disputa (UC-10)",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Disputa aberta com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Usuário não é o cliente do pedido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(responseCode = "422", description = "Pedido não está AGUARDANDO_VALIDACAO")
+    })
+    public ResponseEntity<ConfirmacaoResponseDTO> reportarProblema(
+            @PathVariable Long pedidoId,
+            @AuthenticationPrincipal Usuario usuarioAutenticado) {
+
+        if (!(usuarioAutenticado instanceof Cliente cliente)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas clientes podem contestar a conclusão.");
+        }
+        return ResponseEntity.ok(pedidoService.reportarProblema(pedidoId, cliente.getId()));
+    }
+
+    @GetMapping("/{pedidoId}/confirmacao")
+    @Operation(summary = "Retorna o status de confirmação bilateral do pedido (UC-10)",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Dados de confirmação retornados"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
+    })
+    public ResponseEntity<ConfirmacaoResponseDTO> getConfirmacao(
+            @PathVariable Long pedidoId) {
+        return ResponseEntity.ok(pedidoService.getConfirmacao(pedidoId));
     }
 
     @GetMapping

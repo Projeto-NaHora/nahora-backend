@@ -1,6 +1,8 @@
 package com.nahora.services;
 
 import com.nahora.dto.request.PedidoEditarRequest;
+import com.nahora.dto.request.ConclusaoRequestDTO;
+import com.nahora.dto.response.ConfirmacaoResponseDTO;
 import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.request.PedidoDistanceRequest;
 import com.nahora.dto.request.PedidoFiltroRequest;
@@ -42,6 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
@@ -473,6 +476,114 @@ public class PedidoService {
                 proposta.getValorOferecido(),
                 horarios,
                 proposta.getStatus()
+        );
+    }
+
+    @Transactional
+    public ConfirmacaoResponseDTO marcarComoConcluido(Long pedidoId, Long profissionalId, ConclusaoRequestDTO dto) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        if (pedido.getProfissionalAtribuido() == null
+                || !pedido.getProfissionalAtribuido().getId().equals(profissionalId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o profissional atribuído pode concluir este pedido");
+        }
+
+        if (pedido.getStatus() != StatusPedido.EM_ANDAMENTO) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Apenas pedidos com status EM_ANDAMENTO podem ser marcados como concluídos");
+        }
+
+        pedido.setStatus(StatusPedido.AGUARDANDO_VALIDACAO);
+        pedido.setConcluidoEm(LocalDateTime.now());
+        if (dto != null) {
+            pedido.setFotoConclusaoUrl(dto.getFotoConclusaoUrl());
+        }
+        pedidoRepository.save(pedido);
+
+        chatService.encerrarCanal(pedidoId);
+
+        String tokenCliente = pedido.getCliente().getTokenFcm();
+        if (tokenCliente != null) {
+            pushNotificationService.enviarNotificacao(tokenCliente,
+                    "Serviço concluído",
+                    "Seu serviço foi marcado como concluído. Confirme em até 48h.");
+        }
+
+        return toConfirmacaoResponseDTO(pedido);
+    }
+
+    @Transactional
+    public ConfirmacaoResponseDTO confirmarConclusao(Long pedidoId, Long clienteId, boolean autoConfirmado) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        if (!autoConfirmado && !pedido.getCliente().getId().equals(clienteId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o cliente do pedido pode confirmar a conclusão");
+        }
+
+        if (pedido.getStatus() != StatusPedido.AGUARDANDO_VALIDACAO) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Pedido não está aguardando validação");
+        }
+
+        pedido.setStatus(StatusPedido.CONCLUIDO);
+        pedido.setAutoConfirmado(autoConfirmado);
+        pedidoRepository.save(pedido);
+
+        chatService.fecharCanal(pedidoId);
+
+        return toConfirmacaoResponseDTO(pedido);
+    }
+
+    @Transactional
+    public ConfirmacaoResponseDTO reportarProblema(Long pedidoId, Long clienteId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+
+        if (!pedido.getCliente().getId().equals(clienteId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o cliente do pedido pode contestar a conclusão");
+        }
+
+        if (pedido.getStatus() != StatusPedido.AGUARDANDO_VALIDACAO) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Apenas pedidos aguardando validação podem ser contestados");
+        }
+
+        pedido.setStatus(StatusPedido.EM_DISPUTA);
+        pedidoRepository.save(pedido);
+
+        chatService.reabrirCanalParaDisputa(pedidoId);
+
+        if (pedido.getProfissionalAtribuido() != null) {
+            String tokenProfissional = pedido.getProfissionalAtribuido().getTokenFcm();
+            if (tokenProfissional != null) {
+                pushNotificationService.enviarNotificacao(tokenProfissional,
+                        "Disputa aberta",
+                        "O cliente contestou a conclusão do serviço.");
+            }
+        }
+
+        return toConfirmacaoResponseDTO(pedido);
+    }
+
+    @Transactional(readOnly = true)
+    public ConfirmacaoResponseDTO getConfirmacao(Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
+        return toConfirmacaoResponseDTO(pedido);
+    }
+
+    private ConfirmacaoResponseDTO toConfirmacaoResponseDTO(Pedido pedido) {
+        LocalDateTime prazo = pedido.getConcluidoEm() != null
+                ? pedido.getConcluidoEm().plusHours(48)
+                : null;
+        return new ConfirmacaoResponseDTO(
+                pedido.getId(),
+                pedido.getStatus(),
+                pedido.getConcluidoEm(),
+                prazo,
+                pedido.getFotoConclusaoUrl()
         );
     }
 

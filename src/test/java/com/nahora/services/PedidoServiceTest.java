@@ -1,6 +1,8 @@
 package com.nahora.services;
 
 import com.nahora.dto.request.*;
+import com.nahora.dto.request.ConclusaoRequestDTO;
+import com.nahora.dto.response.ConfirmacaoResponseDTO;
 import com.nahora.dto.response.PedidoCardDTO;
 import com.nahora.dto.response.PedidoResponse;
 import com.nahora.dto.response.PedidoResumoResponse;
@@ -1075,5 +1077,189 @@ class PedidoServiceTest {
         pedidoService.atualizarPedido(pedidoId, clienteId, request);
 
         verifyNoInteractions(pushNotificationService);
+      
+    // ── UC-10: marcarComoConcluido ──────────────────────────────────────────
+
+    @Test
+    void marcarComoConcluido_Sucesso_DeveTransicionarParaAguardandoValidacaoENotificarCliente() {
+        Profissional profissional = new Profissional();
+        profissional.setId(10L);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO);
+        pedido.setCliente(cliente);
+        pedido.setProfissionalAtribuido(profissional);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ConclusaoRequestDTO dto = new ConclusaoRequestDTO();
+        dto.setFotoConclusaoUrl("https://storage/foto.jpg");
+
+        ConfirmacaoResponseDTO response = pedidoService.marcarComoConcluido(pedidoId, 10L, dto);
+
+        assertThat(response.getStatus()).isEqualTo(StatusPedido.AGUARDANDO_VALIDACAO);
+        assertThat(response.getConcluidoEm()).isNotNull();
+        assertThat(response.getPrazoAutoConfirmacaoEm()).isEqualTo(response.getConcluidoEm().plusHours(48));
+        assertThat(response.getFotoConclusaoUrl()).isEqualTo("https://storage/foto.jpg");
+        verify(chatService).encerrarCanal(pedidoId);
+    }
+
+    @Test
+    void marcarComoConcluido_ProfissionalDiferente_DeveLancar403() {
+        Profissional outroProfissional = new Profissional();
+        outroProfissional.setId(99L);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO);
+        pedido.setCliente(cliente);
+        pedido.setProfissionalAtribuido(outroProfissional);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.marcarComoConcluido(pedidoId, 10L, null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(pedidoRepository, never()).save(any());
+    }
+
+    @Test
+    void marcarComoConcluido_StatusErrado_DeveLancar422() {
+        Profissional profissional = new Profissional();
+        profissional.setId(10L);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.ABERTO);
+        pedido.setCliente(cliente);
+        pedido.setProfissionalAtribuido(profissional);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.marcarComoConcluido(pedidoId, 10L, null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+    }
+
+    // ── UC-10: confirmarConclusao ───────────────────────────────────────────
+
+    @Test
+    void confirmarConclusao_Sucesso_DeveTransicionarParaConcluido_EFecharCanal() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.AGUARDANDO_VALIDACAO);
+        pedido.setCliente(cliente);
+        pedido.setConcluidoEm(LocalDateTime.now().minusHours(1));
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ConfirmacaoResponseDTO response = pedidoService.confirmarConclusao(pedidoId, clienteId, false);
+
+        assertThat(response.getStatus()).isEqualTo(StatusPedido.CONCLUIDO);
+        verify(chatService).fecharCanal(pedidoId);
+    }
+
+    @Test
+    void confirmarConclusao_ClienteErrado_DeveLancar403() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.AGUARDANDO_VALIDACAO);
+        pedido.setCliente(cliente);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.confirmarConclusao(pedidoId, 999L, false))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(chatService, never()).fecharCanal(any());
+    }
+
+    @Test
+    void confirmarConclusao_StatusErrado_DeveLancar422() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.CONCLUIDO);
+        pedido.setCliente(cliente);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.confirmarConclusao(pedidoId, clienteId, false))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+    }
+
+    @Test
+    void confirmarConclusao_AutoConfirmado_IgnoraChecagemDeCliente() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.AGUARDANDO_VALIDACAO);
+        pedido.setCliente(cliente);
+        pedido.setConcluidoEm(LocalDateTime.now().minusHours(50));
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ConfirmacaoResponseDTO response = pedidoService.confirmarConclusao(pedidoId, null, true);
+
+        assertThat(response.getStatus()).isEqualTo(StatusPedido.CONCLUIDO);
+        verify(chatService).fecharCanal(pedidoId);
+
+        ArgumentCaptor<Pedido> captor = ArgumentCaptor.forClass(Pedido.class);
+        verify(pedidoRepository).save(captor.capture());
+        assertThat(captor.getValue().getAutoConfirmado()).isTrue();
+    }
+
+    // ── UC-10: reportarProblema ─────────────────────────────────────────────
+
+    @Test
+    void reportarProblema_Sucesso_DeveTransicionarParaEmDisputa_EReabrirCanal() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.AGUARDANDO_VALIDACAO);
+        pedido.setCliente(cliente);
+        pedido.setConcluidoEm(LocalDateTime.now().minusHours(2));
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ConfirmacaoResponseDTO response = pedidoService.reportarProblema(pedidoId, clienteId);
+
+        assertThat(response.getStatus()).isEqualTo(StatusPedido.EM_DISPUTA);
+        verify(chatService).reabrirCanalParaDisputa(pedidoId);
+    }
+
+    @Test
+    void reportarProblema_ClienteErrado_DeveLancar403() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.AGUARDANDO_VALIDACAO);
+        pedido.setCliente(cliente);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.reportarProblema(pedidoId, 999L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(chatService, never()).reabrirCanalParaDisputa(any());
+    }
+
+    @Test
+    void reportarProblema_StatusErrado_DeveLancar422() {
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO);
+        pedido.setCliente(cliente);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        assertThatThrownBy(() -> pedidoService.reportarProblema(pedidoId, clienteId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
     }
 }
