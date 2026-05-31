@@ -1,5 +1,6 @@
 package com.nahora.controllers;
 
+import com.nahora.dto.request.PedidoEditarRequest;
 import com.nahora.dto.request.ConclusaoRequestDTO;
 import com.nahora.dto.response.ConfirmacaoResponseDTO;
 import com.nahora.dto.response.PedidoCardDTO;
@@ -112,7 +113,7 @@ public class PedidoController {
     })
     public ResponseEntity<PedidoResponse> atualizarPedido(
             @PathVariable Long pedidoId,
-            @Valid @RequestBody PedidoRequest request,
+            @Valid @RequestBody PedidoEditarRequest request,
             @AuthenticationPrincipal Usuario usuarioAutenticado) {
 
         if (!(usuarioAutenticado instanceof Cliente clienteAutenticado)) {
