@@ -1077,7 +1077,7 @@ class PedidoServiceTest {
         pedidoService.atualizarPedido(pedidoId, clienteId, request);
 
         verifyNoInteractions(pushNotificationService);
-      
+    }
     // ── UC-10: marcarComoConcluido ──────────────────────────────────────────
 
     @Test
