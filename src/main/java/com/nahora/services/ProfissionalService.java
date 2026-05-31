@@ -26,6 +26,7 @@ public class ProfissionalService {
 
     private final ProfissionalRepository profissionalRepository;
     private final PushNotificationService pushNotificationService;
+    private final StorageService storageService;
 
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -143,9 +144,9 @@ public class ProfissionalService {
                 p.getNome(),
                 p.getTelefone(),
                 p.getEmail(),
-                p.getRgFrenteUrl(),
-                p.getRgVersoUrl(),
-                p.getSelfieUrl(),
+                storageService.presignUrl(p.getRgFrenteUrl()),
+                storageService.presignUrl(p.getRgVersoUrl()),
+                storageService.presignUrl(p.getSelfieUrl()),
                 p.getCriadoEm()
         );
     }
