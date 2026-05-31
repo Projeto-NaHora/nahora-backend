@@ -1,10 +1,8 @@
 package com.nahora.services;
 
+import com.nahora.dto.request.*;
 import com.nahora.dto.response.PedidoCardDTO;
-import com.nahora.dto.request.EnderecoRequest;
-import com.nahora.dto.request.PedidoDistanceRequest;
-import com.nahora.dto.request.PedidoFiltroRequest;
-import com.nahora.dto.request.PedidoRequest;
+import com.nahora.dto.response.PedidoResponse;
 import com.nahora.dto.response.PedidoResumoResponse;
 import com.nahora.model.*;
 import com.nahora.model.enums.CategoriaServico;
@@ -17,6 +15,7 @@ import com.nahora.repositories.ProfissionalRepository;
 import com.nahora.repositories.PropostaRepository;
 import com.nahora.services.ChatService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
@@ -963,5 +963,117 @@ class PedidoServiceTest {
 
         verify(pedidoRepository).findByClienteIdAndStatus(clienteId, StatusPedido.EM_ANDAMENTO, pageable);
         verify(pedidoRepository, never()).findByClienteId(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar pedido com sucesso alterando apenas os três campos permitidos e notificando profissionais")
+    void deveAtualizarPedidoComSucesso() {
+        Long pedidoId = 1L;
+        Long clienteId = 10L;
+
+        Cliente cliente = new Cliente();
+        cliente.setId(clienteId);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.ABERTO);
+        pedido.setDescricao("Descricao antiga longa de teste");
+
+        Profissional prof = new Profissional();
+        prof.setId(20L);
+        prof.setTokenFcm("token-fcm-profissional");
+
+        Proposta proposta = new Proposta();
+        proposta.setProfissional(prof);
+        proposta.setStatus(StatusProposta.ATIVA);
+
+        PedidoEditarRequest request = new PedidoEditarRequest("Nova descricao com tamanho valido de teste", List.of("foto1.png"), java.time.LocalDateTime.now().plusDays(2));
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(i -> i.getArgument(0));
+        when(propostaRepository.findByPedidoIdAndStatus(pedidoId, StatusProposta.ATIVA)).thenReturn(List.of(proposta));
+
+        PedidoResponse response = pedidoService.atualizarPedido(pedidoId, clienteId, request);
+
+        assertNotNull(response);
+        assertEquals("Nova descricao com tamanho valido de teste", pedido.getDescricao());
+        verify(pushNotificationService, times(1)).enviarNotificacao(eq("token-fcm-profissional"), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 422 Unprocessable Entity quando o status do pedido não for ABERTO")
+    void deveLancarErroQuandoStatusNaoForAberto() {
+        Long pedidoId = 1L;
+        Long clienteId = 10L;
+
+        Cliente cliente = new Cliente();
+        cliente.setId(clienteId);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.EM_ANDAMENTO); // Bloqueia edição
+
+        PedidoEditarRequest request = new PedidoEditarRequest("Nova descricao com tamanho valido de teste", List.of(), null);
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                pedidoService.atualizarPedido(pedidoId, clienteId, request)
+        );
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, ex.getStatusCode());
+        verify(pedidoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 Forbidden quando usuário solicitante não for o dono do pedido")
+    void deveLancarErroQuandoUsuarioNaoForDono() {
+        Long pedidoId = 1L;
+        Long clienteIdDono = 10L;
+        Long clienteIdInvasor = 99L;
+
+        Cliente cliente = new Cliente();
+        cliente.setId(clienteIdDono);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.ABERTO);
+
+        PedidoEditarRequest request = new PedidoEditarRequest("Nova descricao com tamanho valido de teste", List.of(), null);
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                pedidoService.atualizarPedido(pedidoId, clienteIdInvasor, request)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Não deve disparar notificações se não houver propostas ativas")
+    void naoDeveNotificarSeNaoHouverPropostasAtivas() {
+        Long pedidoId = 1L;
+        Long clienteId = 10L;
+
+        Cliente cliente = new Cliente();
+        cliente.setId(clienteId);
+
+        Pedido pedido = new Pedido();
+        pedido.setId(pedidoId);
+        pedido.setCliente(cliente);
+        pedido.setStatus(StatusPedido.ABERTO);
+        pedido.setDescricao("Descricao antiga longa de teste");
+
+        PedidoEditarRequest request = new PedidoEditarRequest("Nova descricao com tamanho valido de teste", List.of(), null);
+
+        when(pedidoRepository.findById(pedidoId)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(i -> i.getArgument(0));
+        when(propostaRepository.findByPedidoIdAndStatus(pedidoId, StatusProposta.ATIVA)).thenReturn(List.of());
+
+        pedidoService.atualizarPedido(pedidoId, clienteId, request);
+
+        verifyNoInteractions(pushNotificationService);
     }
 }
