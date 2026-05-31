@@ -10,8 +10,11 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,8 +24,10 @@ public class StorageService {
 
     private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private static final long MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+    private static final int PRESIGN_TTL_SECONDS = 3600;
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${storage.bucket}")
     private String bucket;
@@ -52,6 +57,20 @@ public class StorageService {
         }
 
         return "%s/%s/%s".formatted(endpoint, bucket, key);
+    }
+
+    public String presignUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) return null;
+
+        String prefix = endpoint + "/" + bucket + "/";
+        String key = rawUrl.startsWith(prefix) ? rawUrl.substring(prefix.length()) : rawUrl;
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofSeconds(PRESIGN_TTL_SECONDS))
+                .getObjectRequest(r -> r.bucket(bucket).key(key))
+                .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
     private void validateFile(MultipartFile file) {

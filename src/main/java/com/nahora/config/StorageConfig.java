@@ -7,6 +7,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
@@ -32,6 +33,17 @@ public class StorageConfig {
                 // R2 não usa região real, mas o SDK exige um valor
                 .region(Region.of("auto"))
                 .forcePathStyle(true)
+                .build();
+    }
+
+    @Bean
+    public S3Presigner s3Presigner() {
+        String effectiveEndpoint = (endpoint == null || endpoint.isBlank()) ? "http://localhost:9000" : endpoint;
+        return S3Presigner.builder()
+                .endpointOverride(URI.create(effectiveEndpoint))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)))
+                .region(Region.of("auto"))
                 .build();
     }
 }
